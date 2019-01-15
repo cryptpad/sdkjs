@@ -1515,6 +1515,7 @@
     var t = this;
 
     var sockjs;
+    /*
     if (window['IS_NATIVE_EDITOR']) {
         sockjs = this.sockjs = window['SockJS'];
         sockjs.open();
@@ -1523,18 +1524,69 @@
         //ограничиваем transports WebSocket и XHR / JSONP polling, как и engine.io https://github.com/socketio/engine.io
         //при переборе streaming transports у клиента с wirewall происходило зацикливание(не повторялось в версии sock.js 0.3.4)
         sockjs = this.sockjs = new (this._getSockJs())(this.sockjs_url, null, {transports: ['websocket', 'xdr-polling', 'xhr-polling', 'iframe-xhr-polling', 'jsonp-polling']});
-    }
+    }*/
+    sockjs = this.sockjs = {};
+
+    var send = function (data) {
+        setTimeout(function () {
+            console.log(data);
+            this.onmessage({
+                data: JSON.stringify(data)
+            });
+        });
+    };
+    var license = {
+        type: 'license',
+        license: {
+            type: 3,
+            light: false,
+            trial: false,
+            rights: 1,
+            buildVersion: "4.3.3",
+            buildNumber: 4,
+            branding: false
+        }
+    };
+
+    var channel;
+
+    send(license);
+
+    require([
+        '/common/outer/worker-channel.js',
+        '/common/common-util.js'
+    ], function (Channel, Util) {
+        var msgEv = Util.mkEvent();
+        var p = window.parent;
+        window.addEventListener('message', function (msg) {
+            if (msg.source !== p) { return; }
+            msgEv.fire(msg);
+        });
+        var postMsg = function (data) {
+            p.postMessage(data, '*');
+        };
+        Channel.create(msgEv, postMsg, function (chan) {
+            channel = chan;
+            send(license);
+            chan.on('RTMSG', function (data) {
+                console.log('receiving RTMSG', data);
+            });
+        });
+    });
 
     sockjs.onopen = function() {
+      /*
       if (t.reconnectTimeout) {
         clearTimeout(t.reconnectTimeout);
         t.reconnectTimeout = null;
         t.attemptCount = 0;
       }
+      */
 
       t._state = ConnectionState.WaitAuth;
         t.onFirstConnect();
     };
+    sockjs.onopen();
     sockjs.onmessage = function(e) {
       //TODO: add checks and error handling
       //Get data type
@@ -1607,6 +1659,47 @@
 			break;
       }
     };
+
+    sockjs.close = function () {
+        console.error('Close realtime');
+    };
+
+    sockjs.send = function (data) {
+        console.log(data);
+        try {
+            var obj = JSON.parse(data);
+        } catch (e) {
+            console.error(e);
+            return;
+        }
+        var msg, msg2;
+        switch (obj.type) {
+            case 'auth':
+                msg = {
+                    "type":"auth",
+                    "result":1,
+                    "sessionId":"08e77705-dc5c-477d-b73a-b1a7cbca1e9b",
+                    "sessionTimeConnect":+new Date(),
+                    "participants":[]
+                };
+                msg2 = {
+                    "type":"documentOpen",
+                    "data":{"type":"open","status":"ok","data":{"Editor.bin":obj.openCmd.url}}
+                };
+                send(msg);
+                send(msg2);
+                break;
+            case 'getMessages':
+                msg = {};
+                break;
+        }
+    };
+
+
+
+
+
+    /*
     sockjs.onclose = function(evt) {
       if (ConnectionState.SaveChanges === t._state) {
         // Мы сохраняли изменения и разорвалось соединение
@@ -1631,6 +1724,7 @@
         t._tryReconnect();
       }
     };
+    */
 
     return sockjs;
   };
