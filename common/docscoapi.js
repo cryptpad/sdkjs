@@ -1613,11 +1613,11 @@
     });
   };
 
-	DocsCoApi.prototype._initSocksJs = function () {
-		var t = this;
+    DocsCoApi.prototype._initSocksJs = function () {
+        var t = this;
         var sockjs;
         sockjs = this.sockjs = {};
-    
+
         var send = function (data) {
             setTimeout(function () {
                 console.log(data);
@@ -1633,16 +1633,14 @@
                 light: false,
                 trial: false,
                 rights: 1,
-                buildVersion: "4.3.3",
-                buildNumber: 4,
+                buildVersion: "5.2.6",
+                buildNumber: 5,
                 branding: false
             }
         };
-    
+
         var channel;
-    
-        send(license);
-    
+
         require([
             '/common/outer/worker-channel.js',
             '/common/common-util.js'
@@ -1659,12 +1657,13 @@
             Channel.create(msgEv, postMsg, function (chan) {
                 channel = chan;
                 send(license);
-                chan.on('RTMSG', function (data) {
-                    console.log('receiving RTMSG', data);
+
+                chan.on('CMD', function (obj) {
+                    send(obj);
                 });
             });
         });
-    
+
         sockjs.onopen = function() {
           t._state = ConnectionState.WaitAuth;
             t.onFirstConnect();
@@ -1674,7 +1673,7 @@
         sockjs.close = function () {
             console.error('Close realtime');
         };
-    
+
         sockjs.send = function (data) {
             console.log(data);
             try {
@@ -1683,26 +1682,8 @@
                 console.error(e);
                 return;
             }
-            var msg, msg2;
-            switch (obj.type) {
-                case 'auth':
-                    msg = {
-                        "type":"auth",
-                        "result":1,
-                        "sessionId":"08e77705-dc5c-477d-b73a-b1a7cbca1e9b",
-                        "sessionTimeConnect":+new Date(),
-                        "participants":[]
-                    };
-                    msg2 = {
-                        "type":"documentOpen",
-                        "data":{"type":"open","status":"ok","data":{"Editor.bin":obj.openCmd.url}}
-                    };
-                    send(msg);
-                    send(msg2);
-                    break;
-                case 'getMessages':
-                    msg = {};
-                    break;
+            if (channel) {
+                channel.event('CMD', obj);
             }
         };
 
@@ -1710,8 +1691,8 @@
             t._onServerMessage(e.data);
         };
 
-		return sockjs;
-	};
+        return sockjs;
+    };
 
 	DocsCoApi.prototype._onServerOpen = function () {
 		if (this.reconnectTimeout) {
