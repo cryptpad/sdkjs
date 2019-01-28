@@ -1620,7 +1620,6 @@
 
         var send = function (data) {
             setTimeout(function () {
-                console.log(data);
                 sockjs.onmessage({
                     data: JSON.stringify(data)
                 });
@@ -1630,12 +1629,13 @@
             type: 'license',
             license: {
                 type: 3,
-                light: false,
-                trial: false,
+                mode: 0,
+                //light: false,
+                //trial: false,
                 rights: 1,
                 buildVersion: "5.2.6",
-                buildNumber: 5,
-                branding: false
+                buildNumber: 2,
+                //branding: false
             }
         };
 
@@ -1675,7 +1675,6 @@
         };
 
         sockjs.send = function (data) {
-            console.log(data);
             try {
                 var obj = JSON.parse(data);
             } catch (e) {
