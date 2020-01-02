@@ -77,7 +77,7 @@
         {
             this.Api = _api;
         };
-                
+
         this.LoadEmbeddedFonts = function(url, _fonts)
         {
             this.embeddedFilesPath = url;
@@ -346,7 +346,7 @@
                     oThis.Api.OpenDocumentProgress.CurrentFont++;
                     oThis.Api.SendOpenProgress();
                 }
-                
+
                 oThis.fonts_loading_after_style[oThis.fonts_loading_after_style.length] = oThis.fonts_loading[0];
                 oThis.fonts_loading.shift();
                 oThis._LoadFonts();
@@ -421,7 +421,7 @@
 	{
 		this.embeddedFontFiles[font_index].SetStreamIndex(stream_index);
 	};
-	
+
     function CGlobalImageLoader()
     {
         this.map_image_index = {};
@@ -433,7 +433,7 @@
 
         this.bIsLoadDocumentFirst = false;
 
-        this.bIsAsyncLoadDocumentImages = false;
+        this.bIsAsyncLoadDocumentImages = true;
 
         this.bIsLoadDocumentImagesNoByOrder = true;
         this.nNoByOrderCounter = 0;
@@ -494,7 +494,15 @@
                 }
             }
         };
-        
+
+        this.LoadDocumentImagesCallback = function() {
+
+           if (this.ThemeLoader == null)
+              this.Api.asyncImagesDocumentEndLoaded();
+          else
+              this.ThemeLoader.asyncImagesEndLoaded();
+        }
+
         this.LoadDocumentImages = function(_images, isUrl)
         {
             // сначала заполним массив
@@ -522,13 +530,10 @@
                 {
                     this.LoadImageAsync(i);
                 }
-
                 this.images_loading.splice(0, _len);
 
-                if (this.ThemeLoader == null)
-                    this.Api.asyncImagesDocumentEndLoaded();
-                else
-                    this.ThemeLoader.asyncImagesEndLoaded();
+                var that = this;
+                setTimeout(function() { that.LoadDocumentImagesCallback() }, 3000);
             }
         };
 
@@ -652,17 +657,27 @@
             oImage.Status = ImageLoadStatus.Loading;
             oImage.Image = new Image();
             oThis.map_image_index[oImage.src] = oImage;
+            var oThat = oThis;
             oImage.Image.onload = function(){
                 oImage.Status = ImageLoadStatus.Complete;
-                oThis.Api.asyncImageEndLoadedBackground(oImage);
+                oThat.Api.asyncImageEndLoadedBackground(oImage);
             };
             oImage.Image.onerror = function(){
                 oImage.Status = ImageLoadStatus.Complete;
                 oImage.Image = null;
-                oThis.Api.asyncImageEndLoadedBackground(oImage);
+                oThat.Api.asyncImageEndLoadedBackground(oImage);
             };
             //oImage.Image.crossOrigin = 'anonymous';
-            oThis.loadImageByUrl(oImage.Image, oImage.src);
+
+            // CRYPTPAD: if we find an image URL with #channel= in it
+            // then we need to ask cryptpad to get the blob
+            if (oImage.src.indexOf("#src=")!=-1)
+                window.parent.APP.getImageURL(oImage.src, function(url) {
+                  oThis.loadImageByUrl(oImage.Image, url);
+                  oThis.map_image_index[url] = oImage;
+                });
+            else
+              oThis.loadImageByUrl(oImage.Image, oImage.src);
         };
 
         this.LoadImagesWithCallback = function(arr, loadImageCallBack, loadImageCallBackArgs)
