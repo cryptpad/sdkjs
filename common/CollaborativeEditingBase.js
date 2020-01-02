@@ -664,7 +664,16 @@ CCollaborativeEditingBase.prototype.Clear_NewImages = function()
 };
 CCollaborativeEditingBase.prototype.Add_NewImage = function(Url)
 {
-    this.m_aNewImages.push( Url );
+    // CryptPad - Modify URL for local loading
+    var that = this;
+    if (Url.indexOf("#src=")!=-1) {
+      window.parent.APP.getImageURL(Url, function(url) {
+        that.m_aNewImages.push( Url );
+      });
+    } else {
+        this.m_aNewImages.push( Url );
+    }
+    // CryptPad - End modification
 };
 //-----------------------------------------------------------------------------------
 // Функции для работы с массивом m_aDC
