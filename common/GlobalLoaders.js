@@ -677,14 +677,14 @@
             console.log(oImage);
             // CRYPTPAD: if we find an image URL with #channel= in it
             // then we need to ask cryptpad to get the blob
-            if (oImage.src.indexOf("#src=")!=-1) {
-               window.parent.APP.getImageURL(oImage.src, function(url) { 
-                  oThis.loadImageByUrl(oImage.Image, url);
-                  oThis.map_image_index[url] = oImage;
-               });
-            } else {
-               oThis.loadImageByUrl(oImage.Image, oImage.src);
-            }
+            window.parent.APP.getImageURL(oImage.src, function(url) {
+                  if (url=="") {
+                    oThis.loadImageByUrl(oImage.Image, oImage.src);
+                  } else {
+                    oThis.loadImageByUrl(oImage.Image, url);
+                    oThis.map_image_index[url] = oImage;
+                  }
+            });
         };
 
         this.LoadImagesWithCallback = function(arr, loadImageCallBack, loadImageCallBackArgs)
