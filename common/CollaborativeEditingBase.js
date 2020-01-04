@@ -436,6 +436,11 @@ CCollaborativeEditingBase.prototype.SendImagesUrlsFromChanges = function (aImage
     if(false === oApi.isSaveFonts_Images){
         oApi.isSaveFonts_Images = true;
     }
+
+    // CryptPad - bypassing image loading which is breaking
+    AscCommon.CollaborativeEditing.SendImagesCallback(aImagesToLoad);
+
+    /*
     oApi.fCurCallback = function (oRes) {
         var aData, i, oUrls;
         if(oRes['status'] === 'ok')
@@ -451,6 +456,7 @@ CCollaborativeEditingBase.prototype.SendImagesUrlsFromChanges = function (aImage
         AscCommon.CollaborativeEditing.SendImagesCallback(aImagesToLoad);
     };
     AscCommon.sendCommand(oApi, null, rData);
+    */
 };
 
 CCollaborativeEditingBase.prototype.SendImagesCallback = function (aImages) {
@@ -664,16 +670,7 @@ CCollaborativeEditingBase.prototype.Clear_NewImages = function()
 };
 CCollaborativeEditingBase.prototype.Add_NewImage = function(Url)
 {
-    // CryptPad - Modify URL for local loading
-    var that = this;
-    if (Url.indexOf("#src=")!=-1) {
-      window.parent.APP.getImageURL(Url, function(url) {
-        that.m_aNewImages.push( Url );
-      });
-    } else {
-        this.m_aNewImages.push( Url );
-    }
-    // CryptPad - End modification
+    this.m_aNewImages.push( Url );
 };
 //-----------------------------------------------------------------------------------
 // Функции для работы с массивом m_aDC

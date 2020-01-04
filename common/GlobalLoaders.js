@@ -505,6 +505,11 @@
 
         this.LoadDocumentImages = function(_images, isUrl)
         {
+            // CryptPad added logging
+            console.log("Loading images");
+            console.log(_images);
+            // CryptPad end logging
+
             // сначала заполним массив
             if (this.ThemeLoader == null)
                 this.Api.asyncImagesDocumentStartLoaded();
@@ -668,16 +673,18 @@
                 oThat.Api.asyncImageEndLoadedBackground(oImage);
             };
             //oImage.Image.crossOrigin = 'anonymous';
-
+            console.log("Loading image " + i);
+            console.log(oImage);
             // CRYPTPAD: if we find an image URL with #channel= in it
             // then we need to ask cryptpad to get the blob
-            if (oImage.src.indexOf("#src=")!=-1)
-                window.parent.APP.getImageURL(oImage.src, function(url) {
+            if (oImage.src.indexOf("#src=")!=-1) {
+               window.parent.APP.getImageURL(oImage.src, function(url) { 
                   oThis.loadImageByUrl(oImage.Image, url);
                   oThis.map_image_index[url] = oImage;
-                });
-            else
-              oThis.loadImageByUrl(oImage.Image, oImage.src);
+               });
+            } else {
+               oThis.loadImageByUrl(oImage.Image, oImage.src);
+            }
         };
 
         this.LoadImagesWithCallback = function(arr, loadImageCallBack, loadImageCallBackArgs)
