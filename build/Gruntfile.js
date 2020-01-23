@@ -378,5 +378,5 @@ module.exports = function(grunt) {
 			}
 		})
 	});
-	grunt.registerTask('default', ['build-sdk', 'concat', 'closure-compiler', 'clean', 'license', 'splitfile', 'concat', 'replace', 'clean', 'copy']);
+	grunt.registerTask('default', ['build-sdk', 'concat', 'closure-compiler', 'license', 'splitfile', 'concat', 'replace', 'clean', 'copy']);
 };

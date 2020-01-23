@@ -34,6 +34,11 @@ WEBAPPS_FILES += ../$(WEBAPPS_DIR)/deploy/web-apps/apps/documenteditor/main/app.
 WEBAPPS_FILES += ../$(WEBAPPS_DIR)/deploy/web-apps/apps/presentationeditor/main/app.js
 WEBAPPS_FILES += ../$(WEBAPPS_DIR)/deploy/web-apps/apps/spreadsheeteditor/main/app.js
 SDKJS_FILES += word/sdk-all.js
+SDKJS_FILES += cell/sdk-all.js
+SDKJS_FILES += slide/sdk-all.js
+SDKJS_FILES += word/sdk-all-min.js
+SDKJS_FILES += cell/sdk-all-min.js
+SDKJS_FILES += slide/sdk-all-min.js
 
 .PHONY: all desktop
 
