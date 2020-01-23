@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -96,11 +96,11 @@
 	 * @param {Element} elem
 	 * @param {Element} input
 	 * @param {Array} fmgrGraphics
-	 * @param {FontProperties} oFont
+	 * @param {AscCommonExcel.Font} oFont
 	 * @param {HandlersList} handlers
-	 * @param {Object} settings
+	 * @param {Number} padding
 	 */
-	function CellEditor( elem, input, fmgrGraphics, oFont, handlers, settings ) {
+	function CellEditor( elem, input, fmgrGraphics, oFont, handlers, padding, settings ) {
 		this.element = elem;
 		this.input = input;
 		this.handlers = new asc_HL( handlers );
@@ -157,13 +157,12 @@
 		this.sAutoComplete = null;
 
 		/** @type RegExp */
-		this.reReplaceNL = /\r?\n|\r/g;
 		this.rangeChars = ["=", "-", "+", "*", "/", "(", "{", ",", "<", ">", "^", "!", "&", ":", ";", " "];
 		this.reNotFormula = new XRegExp( "[^\\p{L}\\\\_\\]\\[\\p{N}\\.]", "i" );
 		this.reFormula = new XRegExp( "^([\\p{L}\\\\_\\]\\[][\\p{L}\\\\_\\]\\[\\p{N}\\.]*)", "i" );
 
 		this.defaults = {
-			padding: -1,
+			padding: padding,
 			selectColor: new AscCommon.CColor(190, 190, 255, 0.5),
 			canvasZIndex: 500,
 			blinkInterval: 500,
@@ -176,7 +175,8 @@
 		// Обработчик кликов
 		this.clickCounter = new AscFormat.ClickCounter();
 
-		this._init( settings );
+		//TODO сейчас setting нужен только для того, чтобы передать в init флаг menuEditor. пересмотреть!
+		this._init(settings);
 
 		return this;
 	}
@@ -184,26 +184,30 @@
 	CellEditor.prototype._init = function (settings) {
 		var t = this;
 		var z = t.defaults.canvasZIndex;
-		this.defaults.padding = settings.padding;
 		this.sAutoComplete = null;
 
 		if (null != this.element) {
+			var ceCanvasOuterId = settings && settings.menuEditor ? "ce-canvas-outer-menu" : "ce-canvas-outer";
+			var ceCanvasId = settings && settings.menuEditor ? "ce-canvas-menu" : "ce-canvas";
+			var ceCanvasOverlay = settings && settings.menuEditor ? "ce-canvas-overlay-menu" : "ce-canvas-overlay";
+			var ceCursor = settings && settings.menuEditor ? "ce-cursor-menu" : "ce-cursor";
+
 			t.canvasOuter = document.createElement('div');
-			t.canvasOuter.id = "ce-canvas-outer";
+			t.canvasOuter.id = ceCanvasOuterId;
 			t.canvasOuter.style.position = "absolute";
 			t.canvasOuter.style.display = "none";
 			t.canvasOuter.style.zIndex = z;
-			var innerHTML = '<canvas id="ce-canvas" style="z-index: ' + (z + 1) + '"></canvas>';
-			innerHTML += '<canvas id="ce-canvas-overlay" style="z-index: ' + (z + 2) + '; cursor: ' + t.defaults.cursorShape +
+			var innerHTML = '<canvas id='+ ceCanvasId +' style="z-index: ' + (z + 1) + '"></canvas>';
+			innerHTML += '<canvas id='+ ceCanvasOverlay +' style="z-index: ' + (z + 2) + '; cursor: ' + t.defaults.cursorShape +
 				'"></canvas>';
-			innerHTML += '<div id="ce-cursor" style="display: none; z-index: ' + (z + 3) + '"></div>';
+			innerHTML += '<div id='+ ceCursor +' style="display: none; z-index: ' + (z + 3) + '"></div>';
 			t.canvasOuter.innerHTML = innerHTML;
 			this.element.appendChild(t.canvasOuter);
 
 			t.canvasOuterStyle = t.canvasOuter.style;
-			t.canvas = document.getElementById("ce-canvas");
-			t.canvasOverlay = document.getElementById("ce-canvas-overlay");
-			t.cursor = document.getElementById("ce-cursor");
+			t.canvas = document.getElementById(ceCanvasId);
+			t.canvasOverlay = document.getElementById(ceCanvasOverlay);
+			t.cursor = document.getElementById(ceCursor);
 			t.cursorStyle = t.cursor.style;
 		}
 
@@ -215,7 +219,6 @@
 			canvas: t.canvasOverlay, units: 0/*px*/, fmgrGraphics: this.fmgrGraphics, font: this.m_oFont
 		});
 		t.textRender = new AscCommonExcel.CellTextRender(t.drawingCtx);
-		t.textRender.setDefaultFont(settings.font.clone());
 
 		// bind event handlers
 		if (t.canvasOuter && t.canvasOuter.addEventListener) {
@@ -272,7 +275,6 @@
 	 *   flags      - text flags (wrapText, textAlign)
 	 *   font
 	 *   background
-	 *   textColor
 	 *   saveValueCallback
 	 */
 	CellEditor.prototype.open = function ( options ) {
@@ -317,12 +319,55 @@
 		this._updateUndoRedoChanged();
 	};
 
-	CellEditor.prototype.close = function (saveValue) {
+	CellEditor.prototype.close = function (saveValue, bApplyByArray, callback) {
 		var opt = this.options;
+		var t = this;
+
+		var localSaveValueCallback = function(isSuccess) {
+			t.textFlags.bApplyByArray = null;
+			if(!isSuccess) {
+				t.handlers.trigger('setStrictClose', true);
+				if(callback) {
+					callback(false);
+				}
+				return false;
+			}
+
+			t.isOpened = false;
+
+			t._formula = null;
+			t._parseResult = null;
+
+			if (!window['IS_NATIVE_EDITOR']) {
+				if (window.removeEventListener) {
+					window.removeEventListener("mouseup", t.fKeyMouseUp, false);
+					window.removeEventListener("mousemove", t.fKeyMouseMove, false);
+				}
+				t.input.blur();
+				t.isTopLineActive = false;
+				t.input.isFocused = false;
+				t._hideCursor();
+				// hide
+				t._hideCanvas();
+			}
+
+			// delete autoComplete
+			t.objAutoComplete = {};
+
+			// Сброс состояния редактора
+			t.m_nEditorState = c_oAscCellEditorState.editEnd;
+			t.handlers.trigger("closed");
+
+			if(callback) {
+				callback(true);
+			} else {
+				return true;
+			}
+		};
 
 		if (saveValue) {
 			// Пересчет делаем всегда для не пустой ячейки или если были изменения. http://bugzilla.onlyoffice.com/show_bug.cgi?id=34864
-			if (0 < this.undoList.length || 0 < this._getFragmentsLength(this.options.fragments)) {
+			if (0 < this.undoList.length || 0 < AscCommonExcel.getFragmentsLength(this.options.fragments)) {
 				var isFormula = this.isFormula();
 				// Делаем замену текста на автодополнение, если есть select и текст полностью совпал.
 				if (this.sAutoComplete && !isFormula) {
@@ -333,11 +378,8 @@
 					this.noUpdateMode = false;
 				}
 
-				if (!opt.saveValueCallback(opt.fragments, this.textFlags)) {
-					// При ошибке нужно выставить флаг, чтобы по стрелкам не закрывался редактор
-					this.handlers.trigger('setStrictClose', true);
-					return false;
-				}
+				this.textFlags.bApplyByArray = bApplyByArray;
+				return opt.saveValueCallback(opt.fragments, this.textFlags, localSaveValueCallback);
 			}
 		}
 
@@ -365,10 +407,17 @@
 		// Сброс состояния редактора
 		this.m_nEditorState = c_oAscCellEditorState.editEnd;
 		this.handlers.trigger("closed");
+		if(callback) {
+			callback(true);
+		}
+
 		return true;
 	};
 
 	CellEditor.prototype.setTextStyle = function (prop, val) {
+		if (this.isFormula()) {
+			return;
+		}
 		var t = this, opt = t.options, begin, end, i, first, last;
 
 		if (t.selectionBegin !== t.selectionEnd) {
@@ -442,9 +491,9 @@
 		return this.drawingCtx.getZoom();
 	};
 
-	CellEditor.prototype.changeZoom = function ( factor ) {
-		this.drawingCtx.changeZoom( factor );
-		this.overlayCtx.changeZoom( factor );
+	CellEditor.prototype.changeZoom = function (factor) {
+		this.drawingCtx.changeZoom(factor);
+		this.overlayCtx.changeZoom(factor);
 	};
 
 	CellEditor.prototype.canEnterCellRange = function () {
@@ -582,59 +631,21 @@
 		text = text.replace(/\r/g, "");
 		text = text.replace(/^\n+|\n+$/g, "");
 
-		var length = text.length;
-		if (!(length > 0)) {
-			return;
-		}
-		if (!this._checkMaxCellLength(length)) {
+		if (0 === text.length) {
 			return;
 		}
 
-		var wrap = -1 !== text.indexOf(kNewLine);
-		if (this.selectionBegin !== this.selectionEnd) {
-			this._removeChars();
-		}
-
-		// save info to undo/redo
-		this.undoList.push({fn: this._removeChars, args: [this.cursorPos, length]});
-		this.redoList = [];
-
-		var opt = this.options;
-		var nInsertPos = this.cursorPos;
-		var fr;
-		fr = this._findFragmentToInsertInto(nInsertPos - (nInsertPos > 0 ? 1 : 0));
-		if (fr) {
-			var oCurFragment = opt.fragments[fr.index];
-			if (fr.end <= nInsertPos) {
-				oCurFragment.text += text;
-			} else {
-				var sNewText = oCurFragment.text.substring(0, nInsertPos);
-				sNewText += text;
-				sNewText += oCurFragment.text.substring(nInsertPos);
-				oCurFragment.text = sNewText;
-			}
-			this.cursorPos = nInsertPos + length;
-			this._update();
-		}
-
-		if (wrap) {
-			this._wrapText();
-			this._update();
-		}
+		this._addChars(text);
 	};
 
 	CellEditor.prototype.paste = function (fragments, cursorPos) {
 		if (!(fragments.length > 0)) {
 			return;
 		}
-		var length = this._getFragmentsLength(fragments);
+		var length = AscCommonExcel.getFragmentsLength(fragments);
 		if (!this._checkMaxCellLength(length)) {
 			return;
 		}
-
-		var wrap = fragments.some(function (val) {
-			return -1 !== val.text.indexOf(kNewLine);
-		});
 
 		this._cleanFragments(fragments);
 
@@ -647,11 +658,6 @@
 		this.redoList = [];
 
 		this._addFragments(fragments, this.cursorPos);
-
-		if (wrap) {
-			this._wrapText();
-			this._update();
-		}
 
 		// Сделано только для вставки формулы в ячейку (когда не открыт редактор)
 		if (undefined !== cursorPos) {
@@ -808,7 +814,7 @@
 		this._parseResult = new AscCommonExcel.ParseResult([], []);
 		var cellWithFormula = new window['AscCommonExcel'].CCellWithFormula(ws, bbox.r1, bbox.c1);
 		this._formula = new AscCommonExcel.parserFormula(s.substr(1), cellWithFormula, ws);
-		this._formula.parse(true, true, this._parseResult);
+		this._formula.parse(true, true, this._parseResult, true);
 
 		var r, offset, _e, _s, wsName = null, refStr, isName = false, _sColorPos, localStrObj;
 
@@ -874,14 +880,34 @@
 								if (!nameRef.isSingleSheet()) {
 									continue;
 								}
+								
+								ret = true;
+								localStrObj = nameRef.toLocaleStringObj();
+								refStr = localStrObj[1];
+								wsName = nameRef.getWS().getName();
+
+								localStrObj = r.oper.toLocaleStringObj();
+								_s = _e - localStrObj[1].length;
+								_sColorPos = _e - localStrObj[0].length;
+								break;
 							}
-							case cElementType.cellsRange          :
-							case cElementType.cell3D        : {
+							case cElementType.cellsRange          :{
 								ret = true;
 								localStrObj = r.oper.toLocaleStringObj();
 								refStr = localStrObj[1];
 								wsName = nameRef.getWS().getName();
 								_s = _e - localStrObj[1].length;
+								break;
+							}
+							case cElementType.cell3D        : {
+								ret = true;
+								localStrObj = nameRef.toLocaleStringObj();
+								refStr = localStrObj[1];
+								wsName = nameRef.getWS().getName();
+
+								localStrObj = r.oper.toLocaleStringObj();
+								_s = _e - localStrObj[1].length;
+								_sColorPos = _e - localStrObj[0].length;
 								break;
 							}
 						}
@@ -1042,6 +1068,9 @@
 		}
 	};
 	CellEditor.prototype._updateFormulaEditMod = function ( bIsOpen ) {
+		if(this.getMenuEditorMode()) {
+			return;
+		}
 		var isFormula = this.isFormula();
 		if ( !bIsOpen ) {
 			this._updateEditorState( isFormula );
@@ -1146,7 +1175,9 @@
 		this._adjustCanvas();
 		this._showCanvas();
 		this._renderText();
-		this.input.value = AscCommonExcel.getFragmentsText(fragments);
+		if(!this.getMenuEditorMode()) {
+			this.input.value = AscCommonExcel.getFragmentsText(fragments);
+		}
 		this._updateCursorPosition();
 		this._showCursor();
 	};
@@ -1154,7 +1185,7 @@
 	CellEditor.prototype._update = function () {
 		this._updateFormulaEditMod(/*bIsOpen*/false);
 
-		var tm, canExpW, canExpH, oldLC, doAjust = false, fragments = this._getRenderFragments();
+		var tm, canExpW, canExpH, oldLC, doAjust = false, fragments = this._getRenderFragments(), bChangedH;
 
 		if (0 < fragments.length) {
 			oldLC = this.textRender.getLinesCount();
@@ -1177,14 +1208,29 @@
 			while (tm.height > this._getContentHeight() && canExpH) {
 				canExpH = this._expandHeight();
 				doAjust = true;
+				bChangedH = true;
+			}
+
+			//reduce editor height for interface
+			if(this.getMenuEditorMode()) {
+				if(!bChangedH && tm.height < this._getContentHeight() && this._reduceHeight(tm.height)) {
+					doAjust = true;
+					bChangedH = true;
+				}
 			}
 		}
 		if (doAjust) {
 			this._adjustCanvas();
+			if(bChangedH && this.getMenuEditorMode()) {
+				this.handlers.trigger("resizeEditorHeight");
+			}
 		}
 
 		this._renderText();  // вызов нужен для пересчета поля line.startX, которое используется в _updateCursorPosition
-		this._fireUpdated(); // вызов нужен для обновление текста верхней строки, перед обновлением позиции курсора
+		// вызов нужен для обновление текста верхней строки, перед обновлением позиции курсора
+		if(!this.getMenuEditorMode()) {
+			this._fireUpdated();
+		}
 		this._updateCursorPosition(true);
 		this._showCursor();
 
@@ -1198,26 +1244,90 @@
 	CellEditor.prototype._fireUpdated = function () {
 		var s = AscCommonExcel.getFragmentsText(this.options.fragments);
 		var isFormula = -1 === this.beginCompositePos && s.charAt(0) === "=";
-		var funcPos, funcName, match;
+		var fPos, fName, match, fCurrent;
 
 		if (!this.isTopLineActive || !this.skipTLUpdate || this.undoMode) {
 			this.input.value = s;
 		}
 
 		if (isFormula) {
-			funcPos = asc_lastidx(s, this.reNotFormula, this.cursorPos) + 1;
-			if (funcPos > 0) {
-				match = s.slice(funcPos, this.cursorPos).match(this.reFormula);
+			fPos = asc_lastidx(s, this.reNotFormula, this.cursorPos) + 1;
+			if (fPos > 0) {
+				match = s.slice(fPos, this.cursorPos).match(this.reFormula);
 			}
 			if (match) {
-				funcName = match[1];
+				fName = match[1];
 			} else {
-				funcPos = undefined;
-				funcName = undefined;
+				fPos = undefined;
+				fName = undefined;
+			}
+			fCurrent = this._getEditableFunction(this._parseResult).func;
+		}
+
+		this.handlers.trigger("updated", s, this.cursorPos, fPos, fName);
+		this.handlers.trigger("updatedEditableFunction", fCurrent);
+	};
+
+	CellEditor.prototype._getEditableFunction = function (parseResult, bEndCurPos) {
+		var findOpenFunc = [], editableFunction = null, level = -1;
+		if(!parseResult) {
+			//в этом случае запускаю парсинг формулы до текущей позиции
+			var s = AscCommonExcel.getFragmentsText(this.options.fragments);
+			var isFormula = -1 === this.beginCompositePos && s.charAt(0) === "=";
+			if(isFormula) {
+				var pos = this.cursorPos;
+				var wsOPEN = this.handlers.trigger("getCellFormulaEnterWSOpen");
+				var ws = wsOPEN ? wsOPEN.model : this.handlers.trigger("getActiveWS");
+				var bbox = this.options.bbox;
+
+				var endPos = pos;
+				if(!bEndCurPos) {
+					for(var n = pos; n < s.length; n++) {
+						if("(" === s[n]) {
+							endPos = n;
+						}
+					}
+				}
+
+				var formulaStr = s.substring(1, endPos);
+				parseResult = new AscCommonExcel.ParseResult([], []);
+				var cellWithFormula = new window['AscCommonExcel'].CCellWithFormula(ws, bbox.r1, bbox.c1);
+				var tempFormula = new AscCommonExcel.parserFormula(formulaStr, cellWithFormula, ws);
+				tempFormula.parse(true, true, parseResult, true);
 			}
 		}
 
-		this.handlers.trigger("updated", s, this.cursorPos, isFormula, funcPos, funcName);
+		var elements = parseResult ? parseResult.elems : null;
+		if(elements) {
+			for(var i = 0; i < elements.length; i++) {
+				if(cElementType.func === elements[i].type && elements[i + 1] && "(" === elements[i + 1].name) {
+					level++;
+					findOpenFunc[level] = {elem: elements[i], counter: 1};
+					i++;
+				} else if(-1 !== level) {
+					if("(" === elements[i].name) {
+						findOpenFunc[level].counter++;
+					} else if(")" === elements[i].name) {
+						findOpenFunc[level].counter--;
+					}
+				}
+				if(level > -1 && findOpenFunc[level].counter === 0) {
+					findOpenFunc.splice(level,1);
+					level--;
+				}
+			}
+		}
+
+		if(findOpenFunc) {
+			for(var j = findOpenFunc.length - 1; j >= 0; j--) {
+				if(findOpenFunc[j].counter > 0 && !(findOpenFunc[j].elem instanceof window['AscCommonExcel'].cUnknownFunction)) {
+					editableFunction = findOpenFunc[j].elem.name;
+					break;
+				}
+			}
+		}
+
+		return {func: editableFunction, argPos: parseResult ? parseResult.argPos : null};
 	};
 
 	CellEditor.prototype._expandWidth = function () {
@@ -1283,6 +1393,18 @@
 		return false;
 	};
 
+	CellEditor.prototype._reduceHeight = function (height) {
+
+		var t = this, bottomSide = this.sides.b, i = asc_search( bottomSide, function ( v ) {
+			return v > height;
+		} );
+		if ( i >= 0 ) {
+			t.bottom = bottomSide[i];
+			return true;
+		}
+		return false;
+	};
+
 	CellEditor.prototype._cleanText = function () {
 		this.drawingCtx.clear();
 	};
@@ -1295,37 +1417,40 @@
 	};
 
 	CellEditor.prototype._adjustCanvas = function () {
+		var isRetina = AscBrowser.isRetina;
 		var z = this.defaults.canvasZIndex;
+		var borderSize = 1;
 		var left = this.left * this.kx;
 		var top = this.top * this.ky;
-		var widthStyle = (this.right - this.left) * this.kx - 1; // ToDo разобраться с '-1'
-		var heightStyle = (this.bottom - this.top) * this.ky - 1;
-		var isRetina = AscBrowser.isRetina;
-		var width = widthStyle, height = heightStyle;
+		var width, height, widthStyle, heightStyle;
 
-		if ( isRetina ) {
+		if (isRetina) {
+			borderSize = AscCommon.AscBrowser.convertToRetinaValue(borderSize, true);
+		}
+
+		width = widthStyle = (this.right - this.left) * this.kx - borderSize;
+		height = heightStyle = (this.bottom - this.top) * this.ky - borderSize;
+
+		if (isRetina) {
 			left = AscCommon.AscBrowser.convertToRetinaValue(left);
 			top = AscCommon.AscBrowser.convertToRetinaValue(top);
 
 			widthStyle = AscCommon.AscBrowser.convertToRetinaValue(widthStyle);
 			heightStyle = AscCommon.AscBrowser.convertToRetinaValue(heightStyle);
-
-			width = AscCommon.AscBrowser.convertToRetinaValue(widthStyle, true);
-			height = AscCommon.AscBrowser.convertToRetinaValue(heightStyle, true);
 		}
 
 		this.canvasOuterStyle.left = left + 'px';
 		this.canvasOuterStyle.top = top + 'px';
 		this.canvasOuterStyle.width = widthStyle + 'px';
 		this.canvasOuterStyle.height = heightStyle + 'px';
-		this.canvasOuterStyle.zIndex = this.top < 0 ? -1 : z;
+		if(!this.getMenuEditorMode()) {
+			this.canvasOuterStyle.zIndex = this.top < 0 ? -1 : z;
+		}
 
 		this.canvas.width = this.canvasOverlay.width = width;
 		this.canvas.height = this.canvasOverlay.height = height;
-		if ( isRetina ) {
-			this.canvas.style.width = this.canvasOverlay.style.width = widthStyle + 'px';
-			this.canvas.style.height = this.canvasOverlay.style.height = heightStyle + 'px';
-		}
+		this.canvas.style.width = this.canvasOverlay.style.width = widthStyle + 'px';
+		this.canvas.style.height = this.canvasOverlay.style.height = heightStyle + 'px';
 	};
 
 	CellEditor.prototype._renderText = function (dy) {
@@ -1337,7 +1462,7 @@
 		}
 
 		if (opt.fragments.length > 0) {
-			t.textRender.render(undefined, t._getContentLeft(), dy || 0, t._getContentWidth(), opt.textColor);
+			t.textRender.render(undefined, t._getContentLeft(), dy || 0, t._getContentWidth(), opt.font.getColor());
 		}
 	};
 
@@ -1478,12 +1603,11 @@
 			curHeight = AscCommon.AscBrowser.convertToRetinaValue(curHeight);
 		}
 
+		this.curLeft = curLeft;
+		this.curTop = curTop;
+		this.curHeight = curHeight;
 
-		if (window['IS_NATIVE_EDITOR']) {
-			this.curLeft = curLeft;
-			this.curTop = curTop;
-			this.curHeight = curHeight;
-		} else {
+		if (!window['IS_NATIVE_EDITOR']) {
 			this.cursorStyle.left = curLeft + "px";
 			this.cursorStyle.top = curTop + "px";
 			this.cursorStyle.height = curHeight + "px";
@@ -1499,6 +1623,13 @@
 		if (this.isTopLineActive && !this.skipTLUpdate) {
 			this._updateTopLineCurPos();
 		}
+
+		if(this.getMenuEditorMode()) {
+			this.handlers.trigger( "updateMenuEditorCursorPosition", curTop, curHeight );
+		}
+
+		//var fCurrent = this._getEditableFunction(null, true);
+		//console.log("func: " + fCurrent.func + " arg: " + fCurrent.argPos);
 		this._updateSelectionInfo();
 	};
 
@@ -1717,6 +1848,9 @@
 			}
 
 			this.cursorPos = pos + str.length;
+			if (-1 !== str.indexOf(kNewLine)) {
+				this._wrapText();
+			}
 		}
 
 		this.noUpdateMode = noUpdateMode;
@@ -1962,7 +2096,7 @@
 		// merge fragments with equal formats
 		t._mergeFragments();
 
-		t.cursorPos = pos + t._getFragmentsLength( f );
+		t.cursorPos = pos + AscCommonExcel.getFragmentsLength(f);
 		if ( !t.noUpdateMode ) {
 			t._update();
 		}
@@ -1999,18 +2133,12 @@
 			fr[i].text = s;
 			f = fr[i].format;
 			if (f.getName() === "") {
-				f.setName(t.options.font.FontFamily.Name);
+				f.setName(t.options.font.getName());
 			}
 			if (f.getSize() === 0) {
-				f.setSize(t.options.font.FontSize);
+				f.setSize(t.options.font.getSize());
 			}
 		}
-	};
-
-	CellEditor.prototype._getFragmentsLength = function ( f ) {
-		return f.length > 0 ? f.reduce( function ( pv, cv ) {
-			return pv + cv.text.length;
-		}, 0 ) : 0;
 	};
 
 	CellEditor.prototype._setFormatProperty = function (format, prop, val) {
@@ -2085,7 +2213,7 @@
 		}
 		else if ( action.fn === t._addFragments ) {
 			pos = action.args[1];
-			len = t._getFragmentsLength( action.args[0] );
+			len = AscCommonExcel.getFragmentsLength(action.args[0]);
 			list2.push( {fn: t._removeChars, args: [pos, len], isRange: action.isRange} );
 		}
 		else {
@@ -2101,10 +2229,18 @@
 		t.undoMode = false;
 	};
 
-	CellEditor.prototype._tryCloseEditor = function (event) {
-		if (this.close(true)) {
-			this.handlers.trigger("applyCloseEvent", event);
+	CellEditor.prototype._tryCloseEditor = function (event, bApplyByArray) {
+		var t = this;
+		var callback = function(success) {
+			//для случая, когда пользователь нажимает ctrl+shift+enter переход на новую строку не осуществляется
+			if(!bApplyByArray && success) {
+				t.handlers.trigger("applyCloseEvent", event);
+			}
+		};
+		if(!window['AscCommonExcel'].bIsSupportArrayFormula) {
+			bApplyByArray = false;
 		}
+		this.close(true, bApplyByArray, callback);
 	};
 
 	CellEditor.prototype._getAutoComplete = function (str) {
@@ -2144,22 +2280,23 @@
 		result.strikeout = tmp.getStrikeout();
 		result.subscript = va === AscCommon.vertalign_SubScript;
 		result.superscript = va === AscCommon.vertalign_SuperScript;
-		result.color = (fc ? asc.colorObjToAscColor( fc ) : new Asc.asc_CColor( this.options.textColor ));
+		result.color = (fc ? asc.colorObjToAscColor( fc ) : new Asc.asc_CColor(this.options.font.getColor()));
 
 		this.handlers.trigger( "updateEditorSelectionInfo", result );
 	};
 
 	CellEditor.prototype._checkMaxCellLength = function ( length ) {
-		var newLength = this._getFragmentsLength( this.options.fragments ) + length;
+		var newLength = AscCommonExcel.getFragmentsLength( this.options.fragments ) + length;
+		var maxLength = Asc.c_oAscMaxCellOrCommentLength;
 		// Ограничение на ввод
-		if ( newLength > Asc.c_oAscMaxCellOrCommentLength ) {
+		if ( newLength > maxLength ) {
 			if ( this.selectionBegin === this.selectionEnd ) {
 				return false;
 			}
 
 			var b = Math.min( this.selectionBegin, this.selectionEnd );
 			var e = Math.max( this.selectionBegin, this.selectionEnd );
-			if ( newLength - this._getFragmentsLength( this._getFragments( b, e - b ) ) > Asc.c_oAscMaxCellOrCommentLength ) {
+			if ( newLength - AscCommonExcel.getFragmentsLength(this._getFragments( b, e - b ) ) > maxLength) {
 				return false;
 			}
 		}
@@ -2191,14 +2328,14 @@
 		t.skipTLUpdate = false;
 
 		// определение ввода иероглифов
-		if (t.isTopLineActive && t._getFragmentsLength(t.options.fragments) !== t.input.value.length) {
+		if (t.isTopLineActive && AscCommonExcel.getFragmentsLength(t.options.fragments) !== t.input.value.length) {
 			hieroglyph = true;
 		}
 
 		switch (event.which) {
 
 			case 27:  // "esc"
-				if (t.handlers.trigger("isGlobalLockEditCell")) {
+				if (t.handlers.trigger("isGlobalLockEditCell") || this.getMenuEditorMode()) {
 					return false;
 				}
 				t.close();
@@ -2216,9 +2353,11 @@
 					if (!(event.altKey && event.shiftKey)) {
 						if (event.altKey) {
 							t._addNewLine();
+						} else if(this.getMenuEditorMode()) {
+							t._addNewLine();
 						} else {
 							if (false === t.handlers.trigger("isGlobalLockEditCell")) {
-								t._tryCloseEditor(event);
+								t._tryCloseEditor(event, event.shiftKey&&event.ctrlKey);
 							}
 						}
 					}
@@ -2504,7 +2643,9 @@
 				var res = this._findRangeUnderCursor();
 				if (res.range) {
 					res.range.switchReference();
-					this.enterCellRange(res.range.getName());
+					//_getNameRange - работает только для случая, когда ссылаемся на тот же лист, в противном функция _findRangeUnderCursor возвращает null
+					//если поменяется функция _findRangeUnderCursor для 3d ссылок, тогда необходимо это учитывать и в функции _getNameRange
+					this.enterCellRange(this._getNameRange(res.range));
 				}
 
 				event.stopPropagation();
@@ -2515,6 +2656,18 @@
 		t.skipKeyPress = false;
 		t.skipTLUpdate = true;
 		return true;
+	};
+
+	CellEditor.prototype._getNameRange = function (range) {
+		//check on merge
+		var currentRange = range.clone();
+		var wsOPEN = this.handlers.trigger("getCellFormulaEnterWSOpen"), ws = wsOPEN ? wsOPEN.model : this.handlers.trigger("getActiveWS");
+		var mergedRange = ws.getMergedByCell(currentRange.r1, currentRange.c1);
+		if (mergedRange && currentRange.isEqual(mergedRange)) {
+			currentRange.r2 = currentRange.r1;
+			currentRange.c2 = currentRange.c1;
+		}
+		return currentRange.getName();
 	};
 
 	/** @param event {KeyboardEvent} */
@@ -2541,7 +2694,7 @@
 			}
 
 			// определение ввода иероглифов
-			if (t.isTopLineActive && t._getFragmentsLength(t.options.fragments) !== t.input.value.length) {
+			if (t.isTopLineActive && AscCommonExcel.getFragmentsLength(t.options.fragments) !== t.input.value.length) {
 				t._syncEditors();
 			}
 
@@ -2616,9 +2769,10 @@
 		AscCommon.global_mouseEvent.LockMouse();
 
 		var pos;
+		var button = AscCommon.getMouseButton(event);
 		var coord = this._getCoordinates(event);
 		if (!window['IS_NATIVE_EDITOR']) {
-			this.clickCounter.mouseDownEvent(coord.x, coord.y, event.button);
+			this.clickCounter.mouseDownEvent(coord.x, coord.y, button);
 		}
 
 		this.setFocus(true);
@@ -2627,7 +2781,7 @@
 		this._updateTopLineActive(false);
 		this.input.isFocused = false;
 
-		if (0 === event.button) {
+		if (0 === button) {
 			if (1 === this.clickCounter.getClickCount() % 2) {
 				this.isSelectMode = c_oAscCellEditorSelectState.char;
 				if (!event.shiftKey) {
@@ -2650,7 +2804,7 @@
 				this._moveCursor(kPosition, startWord);
 				this._selectChars(kPosition, endWord);
 			}
-		} else if (2 === event.button) {
+		} else if (2 === button) {
 			this.handlers.trigger('onContextMenu', event);
 		}
 		return true;
@@ -2658,8 +2812,9 @@
 
 	/** @param event {MouseEvent} */
 	CellEditor.prototype._onMouseUp = function (event) {
+		var button = AscCommon.getMouseButton(event);
 		AscCommon.global_mouseEvent.UnLockMouse();
-		if (2 === event.button) {
+		if (2 === button) {
 			return true;
 		}
 		this.isSelectMode = c_oAscCellEditorSelectState.no;
@@ -2785,6 +2940,9 @@
 	};
 	CellEditor.prototype.Get_MaxCursorPosInCompositeText = function () {
 		return this.compositeLength;
+	};
+	CellEditor.prototype.getMenuEditorMode = function () {
+		return this.options && this.options.menuEditor;
 	};
 
 

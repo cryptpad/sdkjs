@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -312,7 +312,7 @@ CParaSpellChecker.prototype =
         this.Words    = {};
     },
 
-    Add : function(StartPos, EndPos, Word, Lang)
+    Add : function(StartPos, EndPos, Word, Lang, isEndDot)
     {
     	if (Word.length > 0)
 		{
@@ -322,7 +322,7 @@ CParaSpellChecker.prototype =
 				Word = Word.substr(1);
 		}
 
-        var SpellCheckerEl = new CParaSpellCheckerElement( StartPos, EndPos, Word, Lang );
+        var SpellCheckerEl = new CParaSpellCheckerElement(StartPos, EndPos, Word, Lang, isEndDot);
         this.Paragraph.Add_SpellCheckerElement( SpellCheckerEl );
         this.Elements.push( SpellCheckerEl );
     },
@@ -361,8 +361,10 @@ CParaSpellChecker.prototype =
             var Element = this.Elements[Index];
             Element.CurPos = false;
 
-            if ( 1 >= Element.Word.length )
-                Element.Checked = true;
+            if (1 >= Element.Word.length || this.private_IsAbbreviation(Element.Word))
+			{
+				Element.Checked = true;
+			}
             else if ( editor.asc_IsSpellCheckCurrentWord() !== true && null === Element.Checked && -1 != CurPos && Element.EndPos.Compare( CurPos ) >= 0 && Element.StartPos.Compare( CurPos ) <= 0 )
             {
                 Element.Checked = true;
@@ -370,10 +372,16 @@ CParaSpellChecker.prototype =
                 editor.WordControl.m_oLogicDocument.Spelling.Add_CurPara( this.ParaId, g_oTableId.Get_ById( this.ParaId ) );
             }
 
-            if ( null === Element.Checked )
+            if ( null === Element.Checked && editor.SpellCheckApi.checkDictionary(this.Elements[Index].Lang) )
             {
                 usrWords.push(this.Elements[Index].Word);
                 usrLang.push(this.Elements[Index].Lang);
+
+                if (this.Elements[Index].IsEndDot())
+				{
+					usrWords.push(this.Elements[Index].Word + ".");
+					usrLang.push(this.Elements[Index].Lang);
+				}
             }
         }
 
@@ -381,7 +389,7 @@ CParaSpellChecker.prototype =
         {
             if (true === editor.WordControl.m_oLogicDocument.Spelling.Add_WaitingParagraph(this.Paragraph, this.RecalcId, usrWords, usrLang))
             {
-                editor.spellCheck({"type" : "spell", "ParagraphId" : this.ParaId, "RecalcId" : this.RecalcId, "ElementId" : 0, "usrWords" : usrWords, "usrLang" : usrLang });
+                editor.SpellCheckApi.spellCheck({"type" : "spell", "ParagraphId" : this.ParaId, "RecalcId" : this.RecalcId, "ElementId" : 0, "usrWords" : usrWords, "usrLang" : usrLang });
             }
             else
             {
@@ -407,9 +415,18 @@ CParaSpellChecker.prototype =
                 {
                     // Если слово есть в локальном словаре, не проверяем его
                     if ( true === DocumentSpelling.Check_Word( Element.Word ) )
-                        Element.Checked = true;
+					{
+						Element.Checked = true;
+					}
+					else if (Element.IsEndDot())
+					{
+						Element.Checked = UsrCorrect[Index2] || UsrCorrect[Index2 + 1];
+						Index2++;
+					}
                     else
-                        Element.Checked = UsrCorrect[Index2];
+					{
+						Element.Checked = UsrCorrect[Index2];
+					}
 
                     Index2++;
                 }
@@ -496,9 +513,9 @@ CParaSpellChecker.prototype =
 			Variants = FoundElement.Variants;
 			Checked  = FoundElement.Checked;
 
-			if (null === Variants && false === editor.WordControl.m_oLogicDocument.Spelling.Check_WaitingParagraph(this.Paragraph))
+			if (null === Variants && false === editor.WordControl.m_oLogicDocument.Spelling.Check_WaitingParagraph(this.Paragraph) && editor.SpellCheckApi.checkDictionary(FoundElement.Lang))
 			{
-				editor.spellCheck({
+				editor.SpellCheckApi.spellCheck({
 					"type"        : "suggest",
 					"ParagraphId" : this.ParaId,
 					"RecalcId"    : this.RecalcId,
@@ -576,7 +593,7 @@ CParaSpellChecker.prototype =
         }
     },
 
-    Compare_WithPrevious : function(OldElements)
+    Compare_WithPrevious : function()
     {
         var ElementsCount = this.Elements.length;
 
@@ -589,16 +606,16 @@ CParaSpellChecker.prototype =
             
             if (undefined !== this.Words[Word])
             {
-                if (true === this.Words[Word][Lang])
-                {
-                    Element.Checked  = true;
-                    Element.Variants = null;
-                }
-                else if (undefined === this.Words[Word][Lang])
+                if (undefined === this.Words[Word][Lang] || this.Words[Word].EndDot !== Element.IsEndDot())
                 {
                     Element.Checked  = null;
                     Element.Variants = null;
                 }
+				else if (true === this.Words[Word][Lang])
+				{
+					Element.Checked  = true;
+					Element.Variants = null;
+				}
                 else
                 {
                     Element.Checked  = false;
@@ -627,15 +644,17 @@ CParaSpellChecker.prototype =
             if (true === Element.Checked && true !== Element.CurPos)
             {
                 if (undefined == this.Words[Element.Word])
-                    this.Words[Element.Word] = {};
+				{
+					this.Words[Element.Word] = {EndDot : Element.IsEndDot()};
+				}
 
                 if (undefined === this.Words[Element.Word][Element.Lang])
-                    this.Words[Element.Word][Element.Lang] = true;
+					this.Words[Element.Word][Element.Lang] = true;
             }
             else if (false === Element.Checked)
             {
                 if (undefined == this.Words[Element.Word])
-                    this.Words[Element.Word] = {};
+                    this.Words[Element.Word] = {EndDot : Element.IsEndDot()};
 
                 if (undefined === this.Words[Element.Word][Element.Lang])
                     this.Words[Element.Word][Element.Lang] = Element.Variants;
@@ -713,16 +732,43 @@ CParaSpellChecker.prototype.ClearPausedEngine = function()
 {
 	this.Engine = null;
 };
+/**
+ * Проверяем является ли заданное слово аббревиатурой
+ * @param {string} sWord
+ * @returns {boolean}
+ */
+CParaSpellChecker.prototype.private_IsAbbreviation = function(sWord)
+{
+	if (sWord.toUpperCase() === sWord)
+	{
+		// Корейские символы считаются символами в верхнем регистре, но при этом мы не должны считать их аббревиатурой
+		for (var nPos = 0, nLen = sWord.length; nPos < nLen; ++nPos)
+		{
+			var nCharCode = sWord.charCodeAt(nPos);
+			if ((0xAC00 <= nCharCode && nCharCode <= 0xD7A3)
+				|| (0x1100 <= nCharCode && nCharCode <= 0x11FF)
+				|| (0x3130 <= nCharCode && nCharCode <= 0x318F)
+				|| (0xA960 <= nCharCode && nCharCode <= 0xA97F)
+				|| (0xD7B0 <= nCharCode && nCharCode <= 0xD7FF))
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
+};
 
 //----------------------------------------------------------------------------------------------------------------------
 // CParaSpellCheckerElement
 //----------------------------------------------------------------------------------------------------------------------
-function CParaSpellCheckerElement(StartPos, EndPos, Word, Lang)
+function CParaSpellCheckerElement(StartPos, EndPos, Word, Lang, isEndDot)
 {
     this.StartPos = StartPos;
     this.EndPos   = EndPos;
     this.Word     = Word;
     this.Lang     = Lang;
+    this.EndDot   = isEndDot; // Данный флаг появился в связи с багом 41954
     this.Checked  = null; // null - неизвестно, true - правильное слово, false - неправильное слово
     this.CurPos   = false;
     this.Variants = null;
@@ -731,7 +777,6 @@ function CParaSpellCheckerElement(StartPos, EndPos, Word, Lang)
     this.EndRun   = null;
 }
 
-CParaSpellCheckerElement.prototype = {};
 CParaSpellCheckerElement.prototype.GetStartPos = function()
 {
 	return this.StartPos;
@@ -739,6 +784,10 @@ CParaSpellCheckerElement.prototype.GetStartPos = function()
 CParaSpellCheckerElement.prototype.GetEndPos = function()
 {
 	return this.EndPos;
+};
+CParaSpellCheckerElement.prototype.IsEndDot = function()
+{
+	return this.EndDot;
 };
 
 //----------------------------------------------------------------------------------------------------------------------
@@ -899,7 +948,7 @@ Paragraph.prototype.Internal_CheckPunctuationBreak = function(_Pos)
     {
         var Item = this.Content[Pos];
 
-        if ( para_Text === Item.Type &&  false === Item.Is_Punctuation() && false === Item.Is_NBSP() && false === Item.Is_Number() && false === Item.Is_SpecialSymbol() )
+        if ( para_Text === Item.Type &&  false === Item.IsPunctuation() && false === Item.Is_NBSP() && false === Item.Is_Number() && false === Item.Is_SpecialSymbol() )
         {
             return true;
         }
@@ -1085,6 +1134,19 @@ ParaRun.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
 	var SpellChecker = oSpellCheckerEngine.SpellChecker;
 	var ContentPos   = oSpellCheckerEngine.ContentPos;
 
+	if (reviewtype_Remove === this.GetReviewType())
+	{
+		if (true === bWord)
+		{
+			SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, sWord, CurLcid, false);
+
+			oSpellCheckerEngine.bWord   = false;
+			oSpellCheckerEngine.sWord   = "";
+			oSpellCheckerEngine.CurLcid = CurLcid;
+		}
+		return;
+	}
+
 	var oCurTextPr = this.Get_CompiledPr(false);
 
 	if (oSpellCheckerEngine.IsFindStart())
@@ -1102,7 +1164,7 @@ ParaRun.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
 		if (true === bWord && CurLcid !== oCurTextPr.Lang.Val)
 		{
 			bWord = false;
-			SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, sWord, CurLcid);
+			SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, sWord, CurLcid, false);
 		}
 
 		CurLcid = oCurTextPr.Lang.Val;
@@ -1118,8 +1180,8 @@ ParaRun.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
 
 		var oItem = this.Content[nPos];
 
-		//if ( para_Text === oItem.Type && ( false === oItem.Is_Punctuation() || ( true === bWord && true === this.Internal_CheckPunctuationBreak( nPos ) ) ) && false === oItem.Is_NBSP() && false === oItem.Is_Number() && false === oItem.Is_SpecialSymbol() )
-		if (para_Text === oItem.Get_Type() && false === oItem.Is_Punctuation() && false === oItem.Is_NBSP() && false === oItem.Is_Number() && false === oItem.Is_SpecialSymbol())
+		//if ( para_Text === oItem.Type && ( false === oItem.IsPunctuation() || ( true === bWord && true === this.Internal_CheckPunctuationBreak( nPos ) ) ) && false === oItem.Is_NBSP() && false === oItem.Is_Number() && false === oItem.Is_SpecialSymbol() )
+		if (para_Text === oItem.Get_Type() && false === oItem.IsPunctuation() && false === oItem.Is_NBSP() && false === oItem.Is_Number() && false === oItem.Is_SpecialSymbol())
 		{
 			if (false === bWord)
 			{
@@ -1151,7 +1213,7 @@ ParaRun.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
 			if (true === bWord)
 			{
 				bWord = false;
-				SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, sWord, CurLcid);
+				SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, sWord, CurLcid, oItem.IsDot());
 			}
 		}
 
@@ -1228,7 +1290,7 @@ ParaMath.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
 	if (true === oSpellCheckerEngine.bWord)
 	{
 		oSpellCheckerEngine.bWord = false;
-		oSpellCheckerEngine.SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, oSpellCheckerEngine.sWord, oSpellCheckerEngine.CurLcid);
+		oSpellCheckerEngine.SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, oSpellCheckerEngine.sWord, oSpellCheckerEngine.CurLcid, false);
 	}
 };
 
@@ -1258,7 +1320,7 @@ ParaField.prototype.CheckSpelling = function(oSpellCheckerEngine, nDepth)
 	if (true === oSpellCheckerEngine.bWord)
 	{
 		oSpellCheckerEngine.bWord = false;
-		oSpellCheckerEngine.SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, oSpellCheckerEngine.sWord, oSpellCheckerEngine.CurLcid);
+		oSpellCheckerEngine.SpellChecker.Add(oSpellCheckerEngine.StartPos, oSpellCheckerEngine.EndPos, oSpellCheckerEngine.sWord, oSpellCheckerEngine.CurLcid, false);
 	}
 };
 

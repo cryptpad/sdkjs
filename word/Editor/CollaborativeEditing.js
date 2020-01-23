@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -198,6 +198,8 @@ CWordCollaborativeEditing.prototype.Release_Locks = function()
                 editor.sync_UnLockComment(this.m_aNeedUnlock[Index].Get_Id());
             else if (this.m_aNeedUnlock[Index] instanceof AscCommonWord.CGraphicObjects)
                 editor.sync_UnLockDocumentSchema();
+            else if (this.m_aNeedUnlock[Index] instanceof AscCommon.CCore)
+                editor.sendEvent("asc_onLockCore", false);
         }
         else if (AscCommon.locktype_Other3 === CurLockType)
         {
@@ -214,24 +216,7 @@ CWordCollaborativeEditing.prototype.OnEnd_Load_Objects = function()
     AscCommon.CollaborativeEditing.Set_GlobalLockSelection(false);
 
     // Запускаем полный пересчет документа
-    var LogicDocument = editor.WordControl.m_oLogicDocument;
-
-    var RecalculateData =
-    {
-        Inline   : { Pos : 0, PageNum : 0 },
-        Flow     : [],
-        HdrFtr   : [],
-        Drawings : {
-            All : true,
-            Map : {}
-        }
-    };
-
-    LogicDocument.Reset_RecalculateCache();
-
-    LogicDocument.Recalculate(false, false, RecalculateData);
-    LogicDocument.Document_UpdateSelectionState();
-    LogicDocument.Document_UpdateInterfaceState();
+    editor.WordControl.m_oLogicDocument.RecalculateFromStart(true);
 
     editor.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.ApplyChanges);
 };
@@ -239,14 +224,6 @@ CWordCollaborativeEditing.prototype.Check_MergeData = function()
 {
     var LogicDocument = editor.WordControl.m_oLogicDocument;
     LogicDocument.Comments.Check_MergeData();
-};
-CWordCollaborativeEditing.prototype.OnStart_CheckLock = function()
-{
-    this.m_aCheckLocks.length = 0;
-};
-CWordCollaborativeEditing.prototype.Add_CheckLock = function(oItem)
-{
-    this.m_aCheckLocks.push(oItem);
 };
 CWordCollaborativeEditing.prototype.OnEnd_CheckLock = function(DontLockInFastMode)
 {
@@ -365,6 +342,20 @@ CWordCollaborativeEditing.prototype.IsNeedToSkipContentControlOnCheckEditingLock
 		return true;
 
 	return false;
+};
+CWordCollaborativeEditing.prototype.Start_CollaborationEditing = function()
+{
+	this.m_nUseType = -1;
+};
+CWordCollaborativeEditing.prototype.End_CollaborationEditing = function()
+{
+	if (this.m_nUseType <= 0)
+	{
+		if (this.m_oLogicDocument && !this.m_oLogicDocument.GetHistory().Have_Changes() && !this.Have_OtherChanges())
+			this.m_nUseType = 1;
+		else
+			this.m_nUseType = 0;
+	}
 };
 //----------------------------------------------------------------------------------------------------------------------
 // Функции для работы с сохраненными позициями документа.
@@ -626,7 +617,7 @@ CWordCollaborativeEditing.prototype.Update_ForeignCursorLabelPosition = function
 
 
 CWordCollaborativeEditing.prototype.private_RecalculateDocument = function(oRecalcData){
-    this.m_oLogicDocument.Recalculate(false, false, oRecalcData);
+    this.m_oLogicDocument.RecalculateWithParams(oRecalcData);
 };
 
 

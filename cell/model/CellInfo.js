@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -117,25 +117,7 @@
 
 	/** @constructor */
 	function asc_CBorder(style, color) {
-		// ToDo заглушка для создания border-а
-		if (typeof style === "string") {
-			switch (style) {
-				case "thin"    :
-					this.style = c_oAscBorderStyles.Thin;
-					break;
-				case "medium"  :
-					this.style = c_oAscBorderStyles.Medium;
-					break;
-				case "thick"  :
-					this.style = c_oAscBorderStyles.Thick;
-					break;
-				default      :
-					this.style = c_oAscBorderStyles.None;
-					break;
-			}
-		} else {
-			this.style = style !== undefined ? style : c_oAscBorderStyles.None;
-		}
+		this.style = style !== undefined ? style : c_oAscBorderStyles.None;
 		this.color = color !== undefined ? color : null;
 	}
 
@@ -280,6 +262,7 @@
 		this.flags = null;
 		this.font = null;
 		this.fill = null;
+		this.fill2 = null;
 		this.border = null;
 		this.innertext = null;
 		this.numFormat = null;
@@ -296,6 +279,9 @@
 		this.formatTableInfo = null;
 		this.sparklineInfo = null;
 		this.pivotTableInfo = null;
+		this.dataValidation = null;
+		this.selectedColsCount = null;
+		this.isLockedHeaderFooter = false;
 	}
 
 	asc_CCellInfo.prototype.asc_getFormula = function () {
@@ -318,6 +304,9 @@
 	};
 	asc_CCellInfo.prototype.asc_getFill = function () {
 		return this.fill;
+	};
+	asc_CCellInfo.prototype.asc_getFill2 = function () {
+		return this.fill2;
 	};
 	asc_CCellInfo.prototype.asc_getBorders = function () {
 		return this.border;
@@ -367,20 +356,34 @@
 	asc_CCellInfo.prototype.asc_getPivotTableInfo = function () {
 		return this.pivotTableInfo;
 	};
+	asc_CCellInfo.prototype.asc_getDataValidation = function () {
+		return this.dataValidation;
+	};
+	asc_CCellInfo.prototype.asc_getSelectedColsCount = function () {
+		return this.selectedColsCount;
+	};
+	asc_CCellInfo.prototype.asc_getLockedHeaderFooter = function () {
+		return this.isLockedHeaderFooter;
+	};
 
 	/** @constructor */
-	function asc_CDefName(n, r, s, t, h, l) {
+	function asc_CDefName(n, r, s, t, h, l, x, bLocale) {
 		this.Name = n;
 		this.LocalSheetId = s;
 		this.Ref = r;
 		this.isTable = t;
 		this.Hidden = h;
 		this.isLock = l;
+		this.isXLNM = x;
+
+		if(bLocale) {
+			this._translate()
+		}
 	}
 
 	asc_CDefName.prototype = {
-		asc_getName: function () {
-			return this.Name;
+		asc_getName: function (bLocale) {
+			return bLocale && null !== this.LocalSheetId ? AscCommon.translateManager.getValue(this.Name) : this.Name;
 		}, asc_getScope: function () {
 			return this.LocalSheetId;
 		}, asc_getRef: function () {
@@ -391,6 +394,16 @@
 			return this.Hidden;
 		}, asc_getIsLock: function () {
 			return this.isLock;
+		}, asc_getIsXlnm: function () {
+			return this.isXLNM;
+		}, _translate: function() {
+			if(null !== this.LocalSheetId) {
+				var translatePrintArea = AscCommonExcel.tryTranslateToPrintArea(this.Name);
+				if(translatePrintArea) {
+					this.Name = translatePrintArea;
+					this.isXLNM = true;
+				}
+			}
 		}
 	};
 
@@ -490,6 +503,7 @@
 	prot["asc_getFlags"] = prot.asc_getFlags;
 	prot["asc_getFont"] = prot.asc_getFont;
 	prot["asc_getFill"] = prot.asc_getFill;
+	prot["asc_getFill2"] = prot.asc_getFill2;
 	prot["asc_getBorders"] = prot.asc_getBorders;
 	prot["asc_getInnerText"] = prot.asc_getInnerText;
 	prot["asc_getNumFormat"] = prot.asc_getNumFormat;
@@ -506,6 +520,9 @@
 	prot["asc_getFormatTableInfo"] = prot.asc_getFormatTableInfo;
 	prot["asc_getSparklineInfo"] = prot.asc_getSparklineInfo;
 	prot["asc_getPivotTableInfo"] = prot.asc_getPivotTableInfo;
+	prot["asc_getDataValidation"] = prot.asc_getDataValidation;
+	prot["asc_getSelectedColsCount"] = prot.asc_getSelectedColsCount;
+	prot["asc_getLockedHeaderFooter"] = prot.asc_getLockedHeaderFooter;
 
 	window["Asc"].asc_CDefName = window["Asc"]["asc_CDefName"] = asc_CDefName;
 	prot = asc_CDefName.prototype;
@@ -515,6 +532,7 @@
 	prot["asc_getIsTable"] = prot.asc_getIsTable;
 	prot["asc_getIsHidden"] = prot.asc_getIsHidden;
 	prot["asc_getIsLock"] = prot.asc_getIsLock;
+	prot["asc_getIsXlnm"] = prot.asc_getIsXlnm;
 
 	window["Asc"].asc_CCheckDefName = window["Asc"]["asc_CCheckDefName"] = asc_CCheckDefName;
 	prot = asc_CCheckDefName.prototype;

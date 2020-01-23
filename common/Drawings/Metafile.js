@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -615,6 +615,16 @@
 				val += 256;
 			this.data[this.pos++] = val;
 		}
+		this.WriteShort          = function(val)
+		{
+			this.CheckSize(2);
+			this.data[this.pos++] = (val) & 0xFF;
+			this.data[this.pos++] = (val >>> 8) & 0xFF;
+		}
+		this.WriteUShort          = function(val)
+		{
+			this.WriteShort(AscFonts.FT_Common.UShort_To_Short(val));
+		}
 		this.WriteLong          = function(val)
 		{
 			this.CheckSize(4);
@@ -622,6 +632,10 @@
 			this.data[this.pos++] = (val >>> 8) & 0xFF;
 			this.data[this.pos++] = (val >>> 16) & 0xFF;
 			this.data[this.pos++] = (val >>> 24) & 0xFF;
+		}
+		this.WriteULong          = function(val)
+		{
+			this.WriteLong(AscFonts.FT_Common.UintToInt(val));
 		}
 		this.WriteDouble        = function(val)
 		{
@@ -776,6 +790,21 @@
 			var count      = text.length & 0x7FFFFFFF;
 			var countWrite = 2 * count;
 			this.CheckSize(countWrite);
+			for (var i = 0; i < count; i++)
+			{
+				var c                 = text.charCodeAt(i) & 0xFFFF;
+				this.data[this.pos++] = c & 0xFF;
+				this.data[this.pos++] = (c >>> 8) & 0xFF;
+			}
+		}
+		this.WriteString4       = function(text)
+		{
+			if ("string" != typeof text)
+				text = text + "";
+
+			var count      = text.length & 0x7FFFFFFF;
+			this.WriteLong(count);
+			this.CheckSize(2 * count);
 			for (var i = 0; i < count; i++)
 			{
 				var c                 = text.charCodeAt(i) & 0xFFFF;
@@ -978,6 +1007,30 @@
 		this.WriteXmlAttributeNumber = function(name, val)
 		{
 			this.WriteXmlAttributeString(name, val.toString());
+		};
+		this.XlsbStartRecord = function(type, len) {
+			//Type
+			if (type < 0x80) {
+				this.WriteByte(type);
+			}
+			else {
+				this.WriteByte((type & 0x7F) | 0x80);
+				this.WriteByte(type >> 7);
+			}
+			//Len
+			for (var i = 0; i < 4; ++i) {
+				var part = len & 0x7F;
+				len = len >> 7;
+				if (len === 0) {
+					this.WriteByte(part);
+					break;
+				}
+				else {
+					this.WriteByte(part | 0x80);
+				}
+			}
+		};
+		this.XlsbEndRecord = function() {
 		};
 	}
 
@@ -2090,6 +2143,7 @@
 					 }
 					 */
 
+					/*
 					var _img = undefined;
 					if (window.editor)
 						_img = window.editor.ImageLoader.map_image_index[img];
@@ -2109,6 +2163,7 @@
 						this.m_arrayPages[this.m_lPagesCount - 1].drawImage(img, x, y, w, h);
 						return;
 					}
+					*/
 
 					var bIsClip = false;
 					if (srcRect.l > 0 || srcRect.t > 0 || srcRect.r < 100 || srcRect.b < 100)
@@ -3222,36 +3277,7 @@
 
 	var g_fontManager = new AscFonts.CFontManager();
 	g_fontManager.Initialize(true);
-
-	function SetHintsProps(bIsHinting, bIsSubpixHinting)
-	{
-		if (undefined === g_fontManager.m_oLibrary.tt_hint_props)
-			return;
-
-		if (bIsHinting && bIsSubpixHinting)
-		{
-			g_fontManager.m_oLibrary.tt_hint_props.TT_USE_BYTECODE_INTERPRETER       = true;
-			g_fontManager.m_oLibrary.tt_hint_props.TT_CONFIG_OPTION_SUBPIXEL_HINTING = true;
-
-			g_fontManager.LOAD_MODE = 40968;
-		}
-		else if (bIsHinting)
-		{
-			g_fontManager.m_oLibrary.tt_hint_props.TT_USE_BYTECODE_INTERPRETER       = true;
-			g_fontManager.m_oLibrary.tt_hint_props.TT_CONFIG_OPTION_SUBPIXEL_HINTING = false;
-
-			g_fontManager.LOAD_MODE = 40968;
-		}
-		else
-		{
-			g_fontManager.m_oLibrary.tt_hint_props.TT_USE_BYTECODE_INTERPRETER       = true;
-			g_fontManager.m_oLibrary.tt_hint_props.TT_CONFIG_OPTION_SUBPIXEL_HINTING = false;
-
-			g_fontManager.LOAD_MODE = 40970;
-		}
-	}
-
-	SetHintsProps(true, true);
+	g_fontManager.SetHintsProps(true, true);
 
 	var g_dDpiX = 96.0;
 	var g_dDpiY = 96.0;
@@ -3287,7 +3313,6 @@
 	window['AscCommon'].CBrush                   = CBrush;
 	window['AscCommon'].CTableMarkup             = CTableMarkup;
 	window['AscCommon'].CTableOutline            = CTableOutline;
-	window['AscCommon'].SetHintsProps            = SetHintsProps;
 	window['AscCommon']._rect                    = _rect;
 
 	window['AscCommon'].global_MatrixTransformer = new CGlobalMatrixTransformer();
@@ -3298,4 +3323,5 @@
 	window['AscCommon'].GradientGetAngleNoRotate = GradientGetAngleNoRotate;
 
 	window['AscCommon'].DashPatternPresets 		 = DashPatternPresets;
+    window['AscCommon'].CommandType 		 	 = CommandType;
 })(window);

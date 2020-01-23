@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -41,7 +41,7 @@ var c_oAscError = Asc.c_oAscError;
 Asc['asc_docs_api'].prototype.asc_StartMailMerge = function(oData)
 {
     this.mailMergeFileData = oData;
-    this.asc_DownloadAs(Asc.c_oAscFileType.JSON);
+    this.asc_DownloadAs(new Asc.asc_CDownloadOptions(Asc.c_oAscFileType.JSON));
 };
 Asc['asc_docs_api'].prototype.asc_StartMailMergeByList = function(aList)
 {
@@ -144,13 +144,14 @@ Asc['asc_docs_api'].prototype.asc_setMailMergeData = function(aList)
 };
 Asc['asc_docs_api'].prototype.asc_sendMailMergeData = function(oData)
 {
+    var t = this;
     var actionType = Asc.c_oAscAsyncAction.SendMailMerge;
     oData.put_UserId(this.documentUserId);
     oData.put_RecordCount(oData.get_RecordTo() - oData.get_RecordFrom() + 1);
-    var options = {oMailMergeSendData: oData, isNoCallback: true};
-    var t = this;
-    this._downloadAs("sendmm", Asc.c_oAscFileType.TXT, actionType, options, function(input) {
-        if (null != input && "sendmm" == input["type"])
+    var options = new Asc.asc_CDownloadOptions(Asc.c_oAscFileType.TXT);
+    options.oMailMergeSendData = oData;
+    options.callback = function(input) {
+        if (null != input && "sendmm" === input["type"])
         {
             if ("ok" != input["status"])
             {
@@ -163,7 +164,8 @@ Asc['asc_docs_api'].prototype.asc_sendMailMergeData = function(oData)
             t.sendEvent("asc_onError", c_oAscError.ID.Unknown, c_oAscError.Level.NoCritical);
         }
         t.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, actionType);
-    });
+    };
+    this.downloadAs(actionType, options);
 };
 Asc['asc_docs_api'].prototype.asc_GetMailMergeFiledValue = function(nIndex, sName)
 {
@@ -175,12 +177,14 @@ Asc['asc_docs_api'].prototype.asc_DownloadAsMailMerge = function(typeFile, Start
     if (null != oDocumentMailMerge)
     {
         var actionType = null;
-        var options = {oDocumentMailMerge: oDocumentMailMerge, downloadType: AscCommon.DownloadType.MailMerge, errorDirect: c_oAscError.ID.MailMergeSaveFile};
+        var options = new Asc.asc_CDownloadOptions(typeFile, true);
+        options.oDocumentMailMerge = oDocumentMailMerge;
+        options.errorDirect = c_oAscError.ID.MailMergeSaveFile;
         if (bIsDownload) {
             actionType = Asc.c_oAscAsyncAction.DownloadMerge;
-            options.downloadType = AscCommon.DownloadType.None;
+            options.isDownloadEvent = false;
         }
-        this._downloadAs("save", typeFile, actionType, options, null);
+        this.downloadAs(actionType, options);
     }
     return null != oDocumentMailMerge ? true : false;
 };
@@ -240,7 +244,7 @@ CDocument.prototype.Add_MailMergeField = function(Name)
 {
     if (false === this.Document_Is_SelectionLocked(AscCommon.changestype_Paragraph_Content))
     {
-        this.Create_NewHistoryPoint(AscDFH.historydescription_Document_AddMailMergeField);
+        this.StartAction(AscDFH.historydescription_Document_AddMailMergeField);
 
         var oField = new ParaField(fieldtype_MERGEFIELD, [Name], []);
         var oRun = new ParaRun();
@@ -249,7 +253,8 @@ CDocument.prototype.Add_MailMergeField = function(Name)
 
         this.Register_Field(oField);
         this.AddToParagraph(oField);
-        this.Document_UpdateInterfaceState();
+        this.UpdateInterface();
+        this.FinalizeAction();
     }
 };
 CDocument.prototype.Set_HightlighMailMergeFields = function(Value)
@@ -276,7 +281,7 @@ CDocument.prototype.Preview_MailMergeResult = function(Index)
     }
 
     this.FieldsManager.Update_MailMergeFields(this.MailMergeMap[Index]);
-    this.Recalculate_FromStart(true);
+    this.RecalculateFromStart(true);
 
     editor.sync_PreviewMailMergeResult(Index);
 };
@@ -289,7 +294,7 @@ CDocument.prototype.EndPreview_MailMergeResult = function()
     AscCommon.CollaborativeEditing.Set_GlobalLock(false);
 
     this.FieldsManager.Restore_MailMergeTemplate();
-    this.Recalculate_FromStart(true);
+    this.RecalculateFromStart(true);
 
     editor.sync_EndPreviewMailMergeResult();
 };

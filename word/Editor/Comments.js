@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -42,9 +42,12 @@ function CCommentData()
     this.m_sTime      = "";
 	this.m_sOOTime      = "";
     this.m_sUserId    = "";
+	this.m_sProviderId= "";
     this.m_sUserName  = "";
+	this.m_sInitials  = "";
     this.m_sQuoteText = null;
     this.m_bSolved    = false;
+	this.m_nDurableId = null;
     this.m_aReplies   = [];
     
     this.Copy = function()
@@ -55,9 +58,12 @@ function CCommentData()
         NewData.m_sTime      = this.m_sTime;
 		NewData.m_sOOTime    = this.m_sOOTime;
         NewData.m_sUserId    = this.m_sUserId;
+		NewData.m_sProviderId= this.m_sProviderId;
         NewData.m_sUserName  = this.m_sUserName;
+		NewData.m_sInitials  = this.m_sInitials;
         NewData.m_sQuoteText = this.m_sQuoteText;
         NewData.m_bSolved    = this.m_bSolved;
+		NewData.m_nDurableId = this.m_nDurableId;
         
         var Count = this.m_aReplies.length;
         for (var Pos = 0; Pos < Count; Pos++)
@@ -132,9 +138,12 @@ function CCommentData()
         this.m_sTime      = AscCommentData.asc_getTime();
 		this.m_sOOTime    = AscCommentData.asc_getOnlyOfficeTime();
         this.m_sUserId    = AscCommentData.asc_getUserId();
+		this.m_sProviderId= AscCommentData.asc_getProviderId();
         this.m_sQuoteText = AscCommentData.asc_getQuoteText();
         this.m_bSolved    = AscCommentData.asc_getSolved();
         this.m_sUserName  = AscCommentData.asc_getUserName();
+		this.m_sInitials  = AscCommentData.asc_getInitials();
+		this.m_nDurableId = AscCommentData.asc_getDurableId();
 
         var RepliesCount  = AscCommentData.asc_getRepliesCount();
         for ( var Index = 0; Index < RepliesCount; Index++ )
@@ -151,7 +160,11 @@ function CCommentData()
         // String            : m_sTime
 		// String            : m_sOOTime
         // String            : m_sUserId
+		// String            : m_sProviderId
         // String            : m_sUserName
+		// String            : m_sInitials
+		// Bool              : Null ли DurableId
+		// ULong             : m_nDurableId
         // Bool              : Null ли QuoteText
         // String            : (Если предыдущий параметр false) QuoteText
         // Bool              : Solved
@@ -163,8 +176,17 @@ function CCommentData()
         Writer.WriteString2( this.m_sTime );
 		Writer.WriteString2( this.m_sOOTime );
         Writer.WriteString2( this.m_sUserId );
+		Writer.WriteString2( this.m_sProviderId );
         Writer.WriteString2( this.m_sUserName );
+		Writer.WriteString2( this.m_sInitials );
 
+		if ( null === this.m_nDurableId )
+			Writer.WriteBool( true );
+		else
+		{
+			Writer.WriteBool( false );
+			Writer.WriteULong( this.m_nDurableId );
+		}
         if ( null === this.m_sQuoteText )
             Writer.WriteBool( true );
         else
@@ -197,8 +219,14 @@ function CCommentData()
         this.m_sTime     = Reader.GetString2();
 		this.m_sOOTime   = Reader.GetString2();
         this.m_sUserId   = Reader.GetString2();
+		this.m_sProviderId = Reader.GetString2();
         this.m_sUserName = Reader.GetString2();
+		this.m_sInitials = Reader.GetString2();
 
+		if ( true != Reader.GetBool() )
+			this.m_nDurableId = Reader.GetULong();
+		else
+			this.m_nDurableId = null;
         var bNullQuote = Reader.GetBool();
         if ( true != bNullQuote  )
             this.m_sQuoteText = Reader.GetString2();
@@ -491,6 +519,17 @@ CComment.prototype.IsSolved = function()
 
 	return false;
 };
+CComment.prototype.IsGlobalComment = function()
+{
+	return (!this.Data || null === this.Data.GetQuoteText());
+};
+CComment.prototype.GetDurableId = function()
+{
+	if (this.Data)
+		return this.Data.m_nDurableId;
+
+	return -1;
+};
 
 var comments_NoComment        = 0;
 var comments_NonActiveComment = 1;
@@ -666,6 +705,17 @@ CComments.prototype.SetUseSolved = function(isUse)
 CComments.prototype.IsUseSolved = function()
 {
 	return this.m_bUseSolved;
+};
+CComments.prototype.GetCommentIdByGuid = function(sGuid)
+{
+	var nDurableId = parseInt(sGuid, 16);
+	for (var sId in this.m_aComments)
+	{
+		if (this.m_aComments[sId].GetDurableId() === nDurableId)
+			return sId;
+	}
+
+	return "";
 };
 
 /**

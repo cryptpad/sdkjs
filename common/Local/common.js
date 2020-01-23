@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -31,6 +31,26 @@
  */
 
 "use strict";
+
+(function (window, undefined)
+{
+	AscCommon.baseEditorsApi.prototype._openChartOrLocalDocument = function ()
+	{
+		if (this.isChartEditor)
+		{
+			return this._openEmptyDocument();
+		}
+
+		this.asc_registerCallback('asc_onDocumentContentReady', function(){
+			DesktopOfflineUpdateLocalName(Asc.editor || editor);
+
+			setTimeout(function(){window["UpdateInstallPlugins"]();}, 10);
+		});
+
+		AscCommon.History.UserSaveMode = true;
+		window["AscDesktopEditor"]["LocalStartOpen"]();
+	};
+})(window);
 
 /////////////////////////////////////////////////////////
 //////////////       FONTS       ////////////////////////
@@ -75,7 +95,7 @@ AscFonts.CFontFileLoader.prototype.LoadFontAsync = function(basePath, _callback,
 		{
 			var __font_data_idx = fontStreams.length;
 			var _uintData = new Uint8Array(this.response);
-			fontStreams[__font_data_idx] = new AscFonts.FT_Stream(_uintData, _uintData.length);
+			fontStreams[__font_data_idx] = new AscFonts.FontStream(_uintData, _uintData.length);
 			oThis.SetStreamIndex(__font_data_idx);
 		}
 		else
@@ -90,6 +110,41 @@ AscFonts.CFontFileLoader.prototype.LoadFontAsync = function(basePath, _callback,
 	};
 
 	xhr.send(null);
+};
+
+window["DesktopOfflineAppDocumentEndLoad"] = function(_url, _data, _len)
+{
+	var editor = Asc.editor || window.editor;
+	AscCommon.g_oDocumentUrls.documentUrl = _url;
+	if (AscCommon.g_oDocumentUrls.documentUrl.indexOf("file:") != 0)
+	{
+		if (AscCommon.g_oDocumentUrls.documentUrl.indexOf("/") != 0)
+			AscCommon.g_oDocumentUrls.documentUrl = "/" + AscCommon.g_oDocumentUrls.documentUrl;
+		AscCommon.g_oDocumentUrls.documentUrl = "file://" + AscCommon.g_oDocumentUrls.documentUrl;
+	}
+
+	AscCommon.g_oIdCounter.m_sUserId = window["AscDesktopEditor"]["CheckUserId"]();
+	if (_data == "")
+	{
+		this.sendEvent("asc_onError", c_oAscError.ID.ConvertationOpenError, c_oAscError.Level.Critical);
+		return;
+	}
+
+	var file = new AscCommon.OpenFileResult();
+	file.data = getBinaryArray(_data, _len);
+	file.bSerFormat = AscCommon.checkStreamSignature(file.data, AscCommon.c_oSerFormat.Signature);
+	file.url = _url;
+	editor.openDocument(file);
+
+	editor.asc_SetFastCollaborative(false);
+	DesktopOfflineUpdateLocalName(editor);
+
+	window["DesktopAfterOpen"](editor);
+
+	// why?
+	// this.onUpdateDocumentModified(AscCommon.History.Have_Changes());
+
+	editor.sendEvent("asc_onDocumentPassword", ("" != editor.currentPassword) ? true : false);
 };
 
 window["DesktopUploadFileToUrl"] = function(url, dst, hash, pass)
@@ -189,7 +244,12 @@ prot.getUrl = function(strPath){
 		return null;
 
 	if (strPath == "Editor.xlsx")
-		return this.documentUrl + "/" + strPath;
+	{
+		var test = this.documentUrl + "/" + strPath;
+		if (window["AscDesktopEditor"]["IsLocalFileExist"](test))
+			return test;
+		return undefined;
+    }
 
 	return this.documentUrl + "/media/" + strPath;
 };
@@ -206,6 +266,36 @@ AscCommon.sendImgUrls = function(api, images, callback)
 		_data[i] = { url: images[i], path : AscCommon.g_oDocumentUrls.getImageUrl(_url) };
 	}
 	callback(_data);
+};
+
+window['Asc']["CAscWatermarkProperties"].prototype["showFileDialog"] = function () {
+    if(!this.Api || !this.DivId){
+        return;
+    }
+    var t = this.Api;
+    var _this = this;
+
+    window["AscDesktopEditor"]["OpenFilenameDialog"]("images", false, function(_file) {
+        var file = _file;
+        if (Array.isArray(file))
+            file = file[0];
+
+        if (!file)
+			return;
+
+        var url = window["AscDesktopEditor"]["LocalFileGetImageUrl"](file);
+        var urls = [AscCommon.g_oDocumentUrls.getImageUrl(url)];
+
+        t.ImageLoader.LoadImagesWithCallback(urls, function(){
+            if(urls.length > 0)
+            {
+                _this.ImageUrl = urls[0];
+                _this.Type = Asc.c_oAscWatermarkType.Image;
+                _this.drawTexture();
+                t.sendEvent("asc_onWatermarkImageLoaded");
+            }
+        });
+    });
 };
 
 /////////////////////////////////////////////////////////
@@ -647,11 +737,16 @@ _proto.prototype["pluginMethod_OnEncryption"] = function(obj)
 
 				_editor.LastUserSavedIndex = undefined;
 
-				_editor.sendEvent("asc_onError", "There is no connection with the blockchain", c_oAscError.Level.Critical);
+				_editor.sendEvent("asc_onError", "There is no connection with the blockchain! End-to-end encryption mode is disabled.", c_oAscError.Level.NoCritical);
+				if (window["AscDesktopEditor"])
+					window["AscDesktopEditor"]["CryptoMode"] = 0;
 				return;
 			}
 
+			_editor.currentDocumentInfoNext = obj["docinfo"];
+
 			window["DesktopOfflineAppDocumentStartSave"](window.doadssIsSaveAs, obj["password"], true, obj["docinfo"] ? obj["docinfo"] : "");
+            window["AscDesktopEditor"]["buildCryptedStart"]();
 			break;
 		}
 		case "getPasswordByFile":

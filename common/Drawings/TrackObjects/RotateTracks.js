@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -496,13 +496,16 @@ function RotateTrackGroup(originalObject)
     this.arrTransforms2 = [];
     var arr_graphic_objects = originalObject.getArrGraphicObjects();
     var group_invert_transform = originalObject.getInvertTransform();
-    for(var i = 0; i < arr_graphic_objects.length; ++i)
+    if(group_invert_transform)
     {
-        var gr_obj_transform_copy = arr_graphic_objects[i].getTransformMatrix().CreateDublicate();
-        global_MatrixTransformer.MultiplyAppend(gr_obj_transform_copy, group_invert_transform);
-        this.arrTransforms2[i] = gr_obj_transform_copy;
-        this.overlayObjects[i] = new OverlayObject(arr_graphic_objects[i].getGeom(), arr_graphic_objects[i].extX, arr_graphic_objects[i].extY,
-            arr_graphic_objects[i].brush,  arr_graphic_objects[i].pen, new CMatrix());
+        for(var i = 0; i < arr_graphic_objects.length; ++i)
+        {
+            var gr_obj_transform_copy = arr_graphic_objects[i].getTransformMatrix().CreateDublicate();
+            global_MatrixTransformer.MultiplyAppend(gr_obj_transform_copy, group_invert_transform);
+            this.arrTransforms2[i] = gr_obj_transform_copy;
+            this.overlayObjects[i] = new OverlayObject(arr_graphic_objects[i].getGeom(), arr_graphic_objects[i].extX, arr_graphic_objects[i].extY,
+                arr_graphic_objects[i].brush,  arr_graphic_objects[i].pen, new CMatrix());
+        }
     }
 
 

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -110,6 +110,10 @@
 		var val = '{' + s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4() + '}';
 		val = val.toUpperCase();
 		return val;
+	}
+	function CreateUInt32()
+	{
+		return Math.floor(Math.random() * 0x100000000);
 	}
 
 	var c_oLicenseResult = {
@@ -231,6 +235,7 @@
 		this.canCoAuthoring = true;
 		this.canReaderMode = true;
 		this.canBranding = false;
+		this.customization = false;
 		this.isAutosaveEnable = true;
 		this.AutosaveMinInterval = 300;
 		this.isAnalyticsEnable = false;
@@ -250,6 +255,9 @@
 	};
 	asc_CAscEditorPermissions.prototype.asc_getCanBranding = function () {
 		return this.canBranding;
+	};
+	asc_CAscEditorPermissions.prototype.asc_getCustomization = function () {
+		return this.customization;
 	};
 	asc_CAscEditorPermissions.prototype.asc_getIsAutosaveEnable = function () {
 		return this.isAutosaveEnable;
@@ -281,6 +289,9 @@
 	};
 	asc_CAscEditorPermissions.prototype.setCanBranding = function (v) {
 		this.canBranding = v;
+	};
+	asc_CAscEditorPermissions.prototype.setCustomization = function (v) {
+		this.customization = v;
 	};
 	asc_CAscEditorPermissions.prototype.setIsLight = function (v) {
 		this.isLight = v;
@@ -1490,6 +1501,11 @@
 			return this.Name;
 		}, asc_getIndex: function () {
 			return this.Index;
+		},
+		asc_putName: function (v) {
+			this.Name = v;
+		}, asc_putIndex: function (v) {
+			this.Index = v;
 		}
 	};
 
@@ -1822,6 +1838,10 @@
 			this.DStrikeout = (undefined != obj.DStrikeout) ? obj.DStrikeout : undefined;
 			this.TextSpacing = (undefined != obj.TextSpacing) ? obj.TextSpacing : undefined;
 			this.Position = (undefined != obj.Position) ? obj.Position : undefined;
+			this.Jc = (undefined != obj.Jc) ? obj.Jc : undefined;
+			this.ListType = (undefined != obj.ListType) ? obj.ListType : undefined;
+			this.OutlineLvl = (undefined != obj.OutlineLvl) ? obj.OutlineLvl : undefined;
+			this.OutlineLvlStyle = (undefined != obj.OutlineLvlStyle) ? obj.OutlineLvlStyle : false;
 		} else {
 			//ContextualSpacing : false,            // Удалять ли интервал между параграфами одинакового стиля
 			//
@@ -1861,6 +1881,10 @@
 			this.DStrikeout = undefined;
 			this.TextSpacing = undefined;
 			this.Position = undefined;
+			this.Jc = undefined;
+			this.ListType = undefined;
+			this.OutlineLvl = undefined;
+			this.OutlineLvlStyle = false;
 		}
 	}
 
@@ -1874,6 +1898,10 @@
 			return this.Ind;
 		}, asc_putInd: function (v) {
 			this.Ind = v;
+		}, asc_getJc: function () {
+			return this.Jc;
+		}, asc_putJc: function (v) {
+			this.Jc = v;
 		}, asc_getKeepLines: function () {
 			return this.KeepLines;
 		}, asc_putKeepLines: function (v) {
@@ -1956,6 +1984,12 @@
 			return this.CanAddDropCap;
 		}, asc_getCanAddImage: function () {
 			return this.CanAddImage;
+		}, asc_getOutlineLvl: function() {
+			return this.OutlineLvl;
+		}, asc_putOutLineLvl: function(nLvl) {
+			this.OutlineLvl = nLvl;
+		}, asc_getOutlineLvlStyle: function() {
+			return this.OutlineLvlStyle;
 		}
 	};
 
@@ -2049,6 +2083,14 @@
         this.columnNumber = null;
         this.columnSpace = null;
         this.signatureId = null;
+
+		this.rot = null;
+		this.rotAdd = null;
+		this.flipH = null;
+		this.flipV = null;
+		this.flipHInvert = null;
+		this.flipVInvert = null;
+		this.shadow = undefined;
 	}
 
 	asc_CShapeProperty.prototype = {
@@ -2151,6 +2193,60 @@
 
 		asc_putFromImage: function(v){
 			this.bFromImage = v;
+		},
+
+		asc_getRot: function(){
+			return this.rot;
+		},
+
+		asc_putRot: function(v){
+			this.rot = v;
+		},
+
+		asc_getRotAdd: function(){
+			return this.rotAdd;
+		},
+
+		asc_putRotAdd: function(v){
+			this.rotAdd = v;
+		},
+
+		asc_getFlipH: function(){
+			return this.flipH;
+		},
+
+		asc_putFlipH: function(v){
+			this.flipH = v;
+		},
+
+		asc_getFlipV: function(){
+			return this.flipV;
+		},
+
+		asc_putFlipV: function(v){
+			this.flipV = v;
+		},
+		asc_getFlipHInvert: function(){
+			return this.flipHInvert;
+		},
+
+		asc_putFlipHInvert: function(v){
+			this.flipHInvert = v;
+		},
+
+		asc_getFlipVInvert: function(){
+			return this.flipVInvert;
+		},
+
+		asc_putFlipVInvert: function(v){
+			this.flipVInvert = v;
+		},
+		asc_getShadow: function(){
+			return this.shadow;
+		},
+
+		asc_putShadow: function(v){
+			this.shadow = v;
 		}
 	};
 
@@ -2360,6 +2456,12 @@
 
             this.columnNumber =  obj.columnNumber != undefined ? obj.columnNumber : undefined;
             this.columnSpace =  obj.columnSpace != undefined ? obj.columnSpace : undefined;
+            this.shadow =  obj.shadow != undefined ? obj.shadow : undefined;
+
+			this.rot = obj.rot != undefined ? obj.rot : undefined;
+			this.flipH = obj.flipH != undefined ? obj.flipH : undefined;
+			this.flipV = obj.flipV != undefined ? obj.flipV : undefined;
+			this.resetCrop =  obj.resetCrop != undefined ? obj.resetCrop : undefined;
 
 		} else {
 			this.CanBeFlow = true;
@@ -2380,7 +2482,6 @@
 
 			this.ChartProperties = null;
 			this.ShapeProperties = null;
-			this.ImageProperties = null;
 
 			this.ChangeLevel = null;
 			this.Group = null;
@@ -2402,6 +2503,13 @@
 
             this.columnNumber = undefined;
             this.columnSpace =  undefined;
+
+
+			this.rot = undefined;
+			this.rotAdd = undefined;
+			this.flipH = undefined;
+			this.flipV = undefined;
+			this.resetCrop = undefined;
 		}
 	}
 
@@ -2545,15 +2653,21 @@
 			this.ShapeProperties = v;
 		},
 
-		asc_getOriginSize: function (api) {
-			if (window['AscFormat'].isRealNumber(this.oleWidth) && window['AscFormat'].isRealNumber(this.oleHeight)) {
+		asc_getOriginSize: function (api)
+		{
+			if (window['AscFormat'].isRealNumber(this.oleWidth) && window['AscFormat'].isRealNumber(this.oleHeight))
+			{
 				return new asc_CImageSize(this.oleWidth, this.oleHeight, true);
 			}
-			if(this.ImageUrl === null)
+			if (this.ImageUrl === null)
 			{
 				return new asc_CImageSize(50, 50, false);
 			}
-			var _section_select = api.WordControl.m_oLogicDocument.Get_PageSizesByDrawingObjects();
+			var _section_select;
+			if(api.WordControl && api.WordControl.m_oLogicDocument)
+			{
+				_section_select = api.WordControl.m_oLogicDocument.Get_PageSizesByDrawingObjects();
+			}
 			var _page_width = AscCommon.Page_Width;
 			var _page_height = AscCommon.Page_Height;
 			var _page_x_left_margin = AscCommon.X_Left_Margin;
@@ -2561,36 +2675,59 @@
 			var _page_x_right_margin = AscCommon.X_Right_Margin;
 			var _page_y_bottom_margin = AscCommon.Y_Bottom_Margin;
 
-			if (_section_select) {
-          if (_section_select.W) {
-              _page_width = _section_select.W;
-          }
+			if (_section_select)
+			{
+				if (_section_select.W)
+				{
+					_page_width = _section_select.W;
+				}
 
-          if (_section_select.H) {
-              _page_height = _section_select.H;
-          }
+				if (_section_select.H)
+				{
+					_page_height = _section_select.H;
+				}
 			}
 
+			var origW = 0;
+			var origH = 0;
 			var _image = api.ImageLoader.map_image_index[AscCommon.getFullImageSrc2(this.ImageUrl)];
-			if (_image != undefined && _image.Image != null && _image.Status == window['AscFonts'].ImageLoadStatus.Complete) {
+			if (_image != undefined && _image.Image != null && _image.Status == window['AscFonts'].ImageLoadStatus.Complete)
+			{
+				origW = _image.Image.width;
+				origH = _image.Image.height;
+			}
+			else if (window["AscDesktopEditor"] && window["AscDesktopEditor"]["GetImageOriginalSize"])
+			{
+				var _size = window["AscDesktopEditor"]["GetImageOriginalSize"](this.ImageUrl);
+				if (_size.W != 0 && _size.H != 0)
+				{
+					origW = _size.W;
+					origH = _size.H;
+				}
+			}
+
+			if (origW != 0 && origH != 0)
+			{
 				var _w = Math.max(1, _page_width - (_page_x_left_margin + _page_x_right_margin));
 				var _h = Math.max(1, _page_height - (_page_y_top_margin + _page_y_bottom_margin));
 
 				var bIsCorrect = false;
-				if (_image.Image != null) {
-					var __w = Math.max((_image.Image.width * AscCommon.g_dKoef_pix_to_mm), 1);
-					var __h = Math.max((_image.Image.height * AscCommon.g_dKoef_pix_to_mm), 1);
 
-					var dKoef = Math.max(__w / _w, __h / _h);
-					if (dKoef > 1) {
-						_w = Math.max(5, __w / dKoef);
-						_h = Math.max(5, __h / dKoef);
+				var __w = Math.max((origW * AscCommon.g_dKoef_pix_to_mm), 1);
+				var __h = Math.max((origH * AscCommon.g_dKoef_pix_to_mm), 1);
 
-						bIsCorrect = true;
-					} else {
-						_w = __w;
-						_h = __h;
-					}
+				var dKoef = Math.max(__w / _w, __h / _h);
+				if (dKoef > 1)
+				{
+					_w = Math.max(5, __w / dKoef);
+					_h = Math.max(5, __h / dKoef);
+
+					bIsCorrect = true;
+				}
+				else
+				{
+					_w = __w;
+					_h = __h;
 				}
 
 				return new asc_CImageSize(_w, _h, bIsCorrect);
@@ -2651,6 +2788,61 @@
 			if (this.ShapeProperties)
 				return this.ShapeProperties.asc_getSignatureId();
 			return undefined;
+		},
+
+		asc_getRot: function(){
+			return this.rot;
+		},
+
+		asc_putRot: function(v){
+			this.rot = v;
+		},
+		asc_getRotAdd: function(){
+			return this.rotAdd;
+		},
+
+		asc_putRotAdd: function(v){
+			this.rotAdd = v;
+		},
+
+		asc_getFlipH: function(){
+			return this.flipH;
+		},
+
+		asc_putFlipH: function(v){
+			this.flipH = v;
+		},
+		asc_getFlipHInvert: function(){
+			return this.flipHInvert;
+		},
+
+		asc_putFlipHInvert: function(v){
+			this.flipHInvert = v;
+		},
+
+		asc_getFlipV: function(){
+			return this.flipV;
+		},
+
+		asc_putFlipV: function(v){
+			this.flipV = v;
+		},
+		asc_getFlipVInvert: function(){
+			return this.flipVInvert;
+		},
+
+		asc_putFlipVInvert: function(v){
+			this.flipVInvert = v;
+		},
+		asc_putResetCrop: function(v){
+			this.resetCrop = v;
+		},
+		asc_getShadow: function(){
+			return this.shadow;
+		},
+
+		asc_putShadow: function(v){
+			this.shadow = v;
 		}
 	};
 
@@ -3340,22 +3532,23 @@
 	};
 
 	function CStyleImage(name, type, image, uiPriority) {
-		this.Name = name;
+		this.name = name;
+		this.displayName = null;
 		this.type = type;
 		this.image = image;
 		this.uiPriority = uiPriority;
 	}
 
-	CStyleImage.prototype.asc_getName = CStyleImage.prototype.get_Name = function () {
-		return this.Name;
+	CStyleImage.prototype.asc_getId = CStyleImage.prototype.asc_getName = CStyleImage.prototype.get_Name = function () {
+		return this.name;
 	};
+	CStyleImage.prototype.asc_getDisplayName = function () { return this.displayName; };
 	CStyleImage.prototype.asc_getType = CStyleImage.prototype.get_Type = function () {
 		return this.type;
 	};
 	CStyleImage.prototype.asc_getImage = function () {
 		return this.image;
 	};
-
 
 	/** @constructor */
     function asc_CSpellCheckProperty(Word, Checked, Variants, ParaId, Element)
@@ -3381,7 +3574,7 @@
         return this.Variants;
     };
 
-    function CWatermarkOnDraw(htmlContent)
+    function CWatermarkOnDraw(htmlContent, api)
 	{
 		// example content:
 		/*
@@ -3422,7 +3615,13 @@
 		}
 		*/
 
+		this.api = api;
+		this.isFontsLoaded = false;
+
 		this.inputContentSrc = htmlContent;
+		if (typeof this.inputContentSrc === "object")
+			this.inputContentSrc = JSON.stringify(this.inputContentSrc);
+
 		this.replaceMap = {};
 
 		this.image = null;
@@ -3434,49 +3633,46 @@
 		this.zoom = 1;
 		this.calculatezoom = -1;
 
-		this.CheckParams = function(api)
+		this.contentObjects = null;
+
+		this.CheckParams = function()
 		{
-			this.replaceMap["%user_name%"] = api.User.userName;
+			this.replaceMap["%user_name%"] = this.api.User.userName;
+
+            var content = this.inputContentSrc;
+            for (var key in this.replaceMap)
+            {
+                if (!this.replaceMap.hasOwnProperty(key))
+                    continue;
+                content = content.replace(new RegExp(key, 'g'), this.replaceMap[key]);
+            }
+            this.contentObjects = {};
+            try {
+                var _objTmp = JSON.parse(content);
+                this.contentObjects = _objTmp;
+            }
+            catch (err) {
+            }
+
+            this.transparent = (undefined == this.contentObjects['transparent']) ? 0.3 : this.contentObjects['transparent'];
 		};
 
 		this.Generate = function()
 		{
+			if (!this.isFontsLoaded)
+				return;
+
 			if (this.zoom == this.calculatezoom)
 				return;
 
 			this.calculatezoom = this.zoom;
-
-			var content = this.inputContentSrc;
-			for (var key in this.replaceMap)
-			{
-				if (!this.replaceMap.hasOwnProperty(key))
-					continue;
-
-				content = content.replace(new RegExp(key, 'g'), this.replaceMap[key]);
-			}
-
-			var _obj = {};
-			try
-			{
-				var _objTmp = JSON.parse(content);
-				_obj = _objTmp;
-			}
-			catch (err)
-			{
-
-			}
-
-			this.transparent = (undefined == _obj['transparent']) ? 0.3 : _obj['transparent'];
-
-			this.privateGenerateShape(_obj);
-
-			//var _data = this.image.toDataURL("image/png");
-			//console.log(_data);
+			this.privateGenerateShape(this.contentObjects);
+			//console.log( this.image.toDataURL("image/png"));
 		};
 
 		this.Draw = function(context, dw_or_dx, dh_or_dy, dw, dh)
 		{
-			if (!this.image)
+			if (!this.image || !this.isFontsLoaded)
 				return;
 
 			var x = 0;
@@ -3516,8 +3712,8 @@
 		};
 		this.DrawOnRenderer = function(renderer, w, h)
 		{
-			var wMM = this.width * g_dKoef_pix_to_mm / this.zoom;
-			var hMM = this.height * g_dKoef_pix_to_mm / this.zoom;
+			var wMM = this.width * AscCommon.g_dKoef_pix_to_mm / this.zoom;
+			var hMM = this.height * AscCommon.g_dKoef_pix_to_mm / this.zoom;
 			var x = (w - wMM) / 2;
 			var y = (h - hMM) / 2;
 
@@ -3528,6 +3724,7 @@
 
 		this.privateGenerateShape = function(obj)
 		{
+
 			AscFormat.ExecuteNoHistory(function(obj) {
 
                 var oShape = new AscFormat.CShape();
@@ -3554,6 +3751,20 @@
 					}
 				}
 
+				var _oldTrackRevision = false;
+                if (oApi.getEditorId() == AscCommon.c_oEditorId.Word && oApi.WordControl && oApi.WordControl.m_oLogicDocument)
+                    _oldTrackRevision = oApi.WordControl.m_oLogicDocument.TrackRevisions;
+
+                if (_oldTrackRevision)
+                    oApi.WordControl.m_oLogicDocument.TrackRevisions = false;
+
+                var bRemoveDocument = false;
+                if(oApi.WordControl && !oApi.WordControl.m_oLogicDocument)
+				{
+					bRemoveDocument = true;
+					oApi.WordControl.m_oLogicDocument = new CDocument();
+					oApi.WordControl.m_oDrawingDocument.m_oLogicDocument = oApi.WordControl.m_oLogicDocument;
+				}
                 oShape.setBDeleted(false);
 				oShape.spPr = new AscFormat.CSpPr();
 				oShape.spPr.setParent(oShape);
@@ -3600,7 +3811,7 @@
 				}
 				for(var i = 0; i < aParagraphsS.length; ++i){
 					var oCurParS = aParagraphsS[i];
-					var oNewParagraph = new Paragraph(oContent.DrawingDocument, oContent, !bWord);
+					var oNewParagraph = new AscCommonWord.Paragraph(oContent.DrawingDocument, oContent, !bWord);
 					if(AscFormat.isRealNumber(oCurParS['align'])){
 						oNewParagraph.Set_Align(oCurParS['align'])
 					}
@@ -3613,7 +3824,7 @@
 						oNewParagraph.Set_Shd(oShd, true);
 					}
 					if(AscFormat.isRealNumber(oCurParS['linespacing'])){
-						oNewParagraph.Set_Spacing({Line: oCurParS['linespacing'], LineRule: Asc.linerule_Auto}, true);
+						oNewParagraph.Set_Spacing({Line: oCurParS['linespacing'], Before: 0, After: 0, LineRule: Asc.linerule_Auto}, true);
 					}
 					var aRunsS = oCurParS['runs'];
 					for(var j = 0; j < aRunsS.length; ++j){
@@ -3622,15 +3833,16 @@
 						if(Array.isArray(oRunS['fill']) && oRunS['fill'].length === 3){
 							oRun.Set_Unifill(AscFormat.CreteSolidFillRGB(oRunS['fill'][0], oRunS['fill'][1], oRunS['fill'][2]));
 						}
-						if(oRunS['font-family']){
-							oRun.Set_RFonts_Ascii({Name : oRunS['font-family'], Index : -1});
-							oRun.Set_RFonts_CS({Name : oRunS['font-family'], Index : -1});
-							oRun.Set_RFonts_EastAsia({Name : oRunS['font-family'], Index : -1});
-							oRun.Set_RFonts_HAnsi({Name : oRunS['font-family'], Index : -1});
-						}
-						if(oRunS['font-size']){
-							oRun.Set_FontSize(oRunS['font-size']);
-						}
+						var fontFamilyName = oRunS['font-family'] ? oRunS['font-family'] : "Arial";
+						var fontSize = (oRunS['font-size'] != null) ? oRunS['font-size'] : 50;
+
+						oRun.Set_RFonts_Ascii({Name : fontFamilyName, Index : -1});
+						oRun.Set_RFonts_CS({Name : fontFamilyName, Index : -1});
+						oRun.Set_RFonts_EastAsia({Name : fontFamilyName, Index : -1});
+						oRun.Set_RFonts_HAnsi({Name : fontFamilyName, Index : -1});
+
+						oRun.Set_FontSize(fontSize);
+
 						oRun.Set_Bold(oRunS['bold'] === true);
 						oRun.Set_Italic(oRunS['italic'] === true);
 						oRun.Set_Strikeout(oRunS['strikeout'] === true);
@@ -3638,28 +3850,31 @@
 
 						var sCustomText = oRunS['text'];
 						if(sCustomText === "<%br%>"){
-							oRun.AddToContent(0, new ParaNewLine(break_Line), false);
+							oRun.AddToContent(0, new AscCommonWord.ParaNewLine(AscCommonWord.break_Line), false);
 						}
 						else{
 							oRun.AddText(sCustomText);
 						}
 
-						oNewParagraph.Internal_Content_Add(i, oRun, false);
+						oNewParagraph.Internal_Content_Add(j, oRun, false);
 					}
 					oContent.Internal_Content_Add(oContent.Content.length, oNewParagraph);
 				}
 
+				var bLoad = AscCommon.g_oIdCounter.m_bLoad;
+				AscCommon.g_oIdCounter.Set_Load(false);
 				oShape.recalculate();
 				if (oShape.bWordShape)
 				{
 					oShape.recalculateText();
 				}
 
+				AscCommon.g_oIdCounter.Set_Load(bLoad);
 				var oldShowParaMarks;
 				if (window.editor)
 				{
-					oldShowParaMarks = editor.ShowParaMarks;
-					editor.ShowParaMarks = false;
+					oldShowParaMarks = oApi.ShowParaMarks;
+                    oApi.ShowParaMarks = false;
 				}
 
 				AscCommon.IsShapeToImageConverter = true;
@@ -3667,8 +3882,8 @@
 
 				var w_mm = 210;
 				var h_mm = 297;
-				var w_px = AscCommon.AscBrowser.convertToRetinaValue(w_mm * g_dKoef_mm_to_pix * this.zoom, true);
-				var h_px = AscCommon.AscBrowser.convertToRetinaValue(h_mm * g_dKoef_mm_to_pix * this.zoom, true);
+				var w_px = AscCommon.AscBrowser.convertToRetinaValue(w_mm * AscCommon.g_dKoef_mm_to_pix * this.zoom, true);
+				var h_px = AscCommon.AscBrowser.convertToRetinaValue(h_mm * AscCommon.g_dKoef_mm_to_pix * this.zoom, true);
 
 				_bounds_cheker.init(w_px, h_px, w_mm, h_mm);
 				_bounds_cheker.transform(1,0,0,1,0,0);
@@ -3706,51 +3921,107 @@
 
 				AscCommon.IsShapeToImageConverter = false;
 
+				if(bRemoveDocument)
+				{
+					oApi.WordControl.m_oLogicDocument = null;
+					oApi.WordControl.m_oDrawingDocument.m_oLogicDocument = null;
+				}
 				if (window.editor)
 				{
-					window.editor.ShowParaMarks = oldShowParaMarks;
+                    oApi.ShowParaMarks = oldShowParaMarks;
 				}
 
+				if (_oldTrackRevision)
+					oApi.WordControl.m_oLogicDocument.TrackRevisions = true;
+
 			}, this, [obj]);
+
 		};
+
+		this.onReady = function()
+		{
+			this.isFontsLoaded = true;
+            var oApi = this.api;
+
+            switch (oApi.editorId)
+            {
+                case AscCommon.c_oEditorId.Word:
+                {
+                    if (oApi.WordControl)
+                    {
+                        if (oApi.watermarkDraw)
+                        {
+                            oApi.watermarkDraw.zoom = oApi.WordControl.m_nZoomValue / 100;
+                            oApi.watermarkDraw.Generate();
+                        }
+
+                        oApi.WordControl.OnRePaintAttack();
+                    }
+
+                    break;
+                }
+                case AscCommon.c_oEditorId.Presentation:
+                {
+                    if (oApi.WordControl)
+                    {
+                        if (oApi.watermarkDraw)
+                        {
+                            oApi.watermarkDraw.zoom = oApi.WordControl.m_nZoomValue / 100;
+                            oApi.watermarkDraw.Generate();
+                        }
+
+                        oApi.WordControl.OnRePaintAttack();
+                    }
+                    break;
+                }
+                case AscCommon.c_oEditorId.Spreadsheet:
+                {
+                    var ws = oApi.wb && oApi.wb.getWorksheet();
+                    if (ws && ws.objectRender && ws.objectRender)
+                    {
+                        ws.objectRender.OnUpdateOverlay();
+                    }
+                    break;
+                }
+            }
+		};
+
+		this.checkOnReady = function()
+		{
+            this.CheckParams();
+
+            var fonts = [];
+            var pars = this.contentObjects['paragraphs'];
+            var i, j;
+            for (i = 0; i < pars.length; i++)
+            {
+                var runs = pars[i]['runs'];
+                for (j = 0; j < runs.length; j++)
+                {
+                    if (undefined !== runs[j]["font-family"])
+                        fonts.push(runs[j]["font-family"]);
+                }
+            }
+
+            for (i = 0; i < fonts.length; i++)
+            {
+                fonts[i] = new AscFonts.CFont(g_fontApplication.GetFontInfoName(fonts[i]), 0, "", 0, null);
+            }
+
+			if (false === AscCommon.g_font_loader.CheckFontsNeedLoading(fonts))
+            {
+                this.onReady();
+                return false;
+            }
+
+            this.api.asyncMethodCallback = function() {
+                var oApi = Asc['editor'] || editor;
+                oApi.watermarkDraw.onReady();
+            };
+
+            AscCommon.g_font_loader.LoadDocumentFonts2(fonts);
+		}
 	}
-	window.TEST_WATERMARK_STRING = "\
-	{\
-		\"transparent\" : 0.3,\
-		\"type\" : \"rect\",\
-		\"width\" : 100,\
-		\"height\" : 100,\
-		\"rotate\" : -45,\
-		\"margins\" : [ 10, 10, 10, 10 ],\
-		\"fill\" : [255, 0, 0],\
-		\"stroke-width\" : 1,\
-		\"stroke\" : [0, 0, 255],\
-		\"align\" : 1,\
-		\
-		\"paragraphs\" : [\
-		{\
-			\"align\" : 2,\
-			\"fill\" : [255, 0, 0],\
-			\"linespacing\" : 1,\
-			\
-			\"runs\" : [\
-				{\
-					\"text\" : \"Do not steal, %user_name%!\",\
-					\"fill\" : [0, 0, 0],\
-					\"font-family\" : \"Arial\",\
-					\"font-size\" : 40,\
-					\"bold\" : true,\
-					\"italic\" : false,\
-					\"strikeout\" : false,\
-					\"underline\" : false\
-				},\
-				{\
-					\"text\" : \"<%br%>\"\
-				}\
-			]\
-		}\
-	]\
-	}";
 
 	// ----------------------------- plugins ------------------------------- //
 	function CPluginVariation()
@@ -3764,6 +4035,7 @@
 		this.isViewer       = false;
 		this.EditorsSupport = ["word", "cell", "slide"];
 
+		this.isSystem	  = false;
 		this.isVisual     = false;      // визуальный ли
 		this.isModal      = false;      // модальное ли окно (используется только для визуального)
 		this.isInsideMode = false;      // отрисовка не в окне а внутри редактора (в панели) (используется только для визуального немодального)
@@ -3809,6 +4081,14 @@
 		this.icons = value;
 	};
 
+	CPluginVariation.prototype["get_System"]         = function()
+	{
+		return this.isSystem;
+	};
+	CPluginVariation.prototype["set_System"]         = function(value)
+	{
+		this.isSystem = value;
+	};
 	CPluginVariation.prototype["get_Viewer"]         = function()
 	{
 		return this.isViewer;
@@ -3935,6 +4215,7 @@
 		_object["isViewer"]       = this.isViewer;
 		_object["EditorsSupport"] = this.EditorsSupport;
 
+		_object["isSystem"]     = this.isSystem;
 		_object["isVisual"]     = this.isVisual;
 		_object["isModal"]      = this.isModal;
 		_object["isInsideMode"] = this.isInsideMode;
@@ -4060,6 +4341,7 @@
 	window["AscCommon"].CreateAscColorCustom = CreateAscColorCustom;
 	window["AscCommon"].CreateAscColor = CreateAscColor;
 	window["AscCommon"].CreateGUID = CreateGUID;
+	window["AscCommon"].CreateUInt32 = CreateUInt32;
 
 	window['Asc']['c_oLicenseResult'] = window['Asc'].c_oLicenseResult = c_oLicenseResult;
 	prot = c_oLicenseResult;
@@ -4126,6 +4408,7 @@
 	prot["asc_getCanCoAuthoring"] = prot.asc_getCanCoAuthoring;
 	prot["asc_getCanReaderMode"] = prot.asc_getCanReaderMode;
 	prot["asc_getCanBranding"] = prot.asc_getCanBranding;
+	prot["asc_getCustomization"] = prot.asc_getCustomization;
 	prot["asc_getIsAutosaveEnable"] = prot.asc_getIsAutosaveEnable;
 	prot["asc_getAutosaveMinInterval"] = prot.asc_getAutosaveMinInterval;
 	prot["asc_getIsAnalyticsEnable"] = prot.asc_getIsAnalyticsEnable;
@@ -4330,9 +4613,12 @@
 	prot["get_ListSubType"] = prot["asc_getListSubType"] = prot.asc_getListSubType;
 
 	window["AscCommon"].asc_CTextFontFamily = asc_CTextFontFamily;
+	window["AscCommon"]["asc_CTextFontFamily"] = asc_CTextFontFamily;
 	prot = asc_CTextFontFamily.prototype;
-	prot["get_Name"] = prot["asc_getName"] = prot.asc_getName;
-	prot["get_Index"] = prot["asc_getIndex"] = prot.asc_getIndex;
+	prot["get_Name"] = prot["asc_getName"] = prot.get_Name = prot.asc_getName;
+	prot["get_Index"] = prot["asc_getIndex"] = prot.get_Index = prot.asc_getIndex;
+	prot["put_Name"] = prot["asc_putName"] = prot.put_Name = prot.asc_putName;
+	prot["put_Index"] = prot["asc_putIndex"] = prot.put_Index = prot.asc_putIndex;
 
 	window["Asc"]["asc_CParagraphTab"] = window["Asc"].asc_CParagraphTab = asc_CParagraphTab;
 	prot = asc_CParagraphTab.prototype;
@@ -4417,6 +4703,8 @@
 	prot["put_ContextualSpacing"] = prot["asc_putContextualSpacing"] = prot.asc_putContextualSpacing;
 	prot["get_Ind"] = prot["asc_getInd"] = prot.asc_getInd;
 	prot["put_Ind"] = prot["asc_putInd"] = prot.asc_putInd;
+	prot["get_Jc"] = prot["asc_getJc"] = prot.asc_getJc;
+	prot["put_Jc"] = prot["asc_putJc"] = prot.asc_putJc;
 	prot["get_KeepLines"] = prot["asc_getKeepLines"] = prot.asc_getKeepLines;
 	prot["put_KeepLines"] = prot["asc_putKeepLines"] = prot.asc_putKeepLines;
 	prot["get_KeepNext"] = prot["asc_getKeepNext"] = prot.asc_getKeepNext;
@@ -4457,6 +4745,9 @@
 	prot["put_FramePr"] = prot["asc_putFramePr"] = prot.asc_putFramePr;
 	prot["get_CanAddDropCap"] = prot["asc_getCanAddDropCap"] = prot.asc_getCanAddDropCap;
 	prot["get_CanAddImage"] = prot["asc_getCanAddImage"] = prot.asc_getCanAddImage;
+	prot["get_OutlineLvl"] = prot["asc_getOutlineLvl"] = prot.asc_getOutlineLvl;
+	prot["put_OutlineLvl"] = prot["asc_putOutLineLvl"] = prot.asc_putOutLineLvl;
+	prot["get_OutlineLvlStyle"] = prot["asc_getOutlineLvlStyle"] = prot.asc_getOutlineLvlStyle;
 
 	window["AscCommon"].asc_CTexture = asc_CTexture;
 	prot = asc_CTexture.prototype;
@@ -4522,6 +4813,20 @@
 	prot["put_SignatureId"] = prot["asc_putSignatureId"] = prot.asc_putSignatureId;
 	prot["get_FromImage"] = prot["asc_getFromImage"] = prot.asc_getFromImage;
 	prot["put_FromImage"] = prot["asc_putFromImage"] = prot.asc_putFromImage;
+	prot["get_Rot"] = prot["asc_getRot"] = prot.asc_getRot;
+	prot["put_Rot"] = prot["asc_putRot"] = prot.asc_putRot;
+	prot["get_RotAdd"] = prot["asc_getRotAdd"] = prot.asc_getRotAdd;
+	prot["put_RotAdd"] = prot["asc_putRotAdd"] = prot.asc_putRotAdd;
+	prot["get_FlipH"] = prot["asc_getFlipH"] = prot.asc_getFlipH;
+	prot["put_FlipH"] = prot["asc_putFlipH"] = prot.asc_putFlipH;
+	prot["get_FlipV"] = prot["asc_getFlipV"] = prot.asc_getFlipV;
+	prot["put_FlipV"] = prot["asc_putFlipV"] = prot.asc_putFlipV;
+	prot["get_FlipHInvert"] = prot["asc_getFlipHInvert"] = prot.asc_getFlipHInvert;
+	prot["put_FlipHInvert"] = prot["asc_putFlipHInvert"] = prot.asc_putFlipHInvert;
+	prot["get_FlipVInvert"] = prot["asc_getFlipVInvert"] = prot.asc_getFlipVInvert;
+	prot["put_FlipVInvert"] = prot["asc_putFlipVInvert"] = prot.asc_putFlipVInvert;
+	prot["put_shadow"] = prot.put_shadow = prot["asc_putShadow"] = prot.asc_putShadow;
+	prot["get_shadow"] = prot.get_shadow = prot["asc_getShadow"] = prot.asc_getShadow;
 
 	window["Asc"]["asc_TextArtProperties"] = window["Asc"].asc_TextArtProperties = asc_TextArtProperties;
 	prot = asc_TextArtProperties.prototype;
@@ -4624,6 +4929,19 @@
 	prot["put_PluginGuid"] = prot["asc_putPluginGuid"] = prot.asc_putPluginGuid;
 	prot["get_PluginData"] = prot["asc_getPluginData"] = prot.asc_getPluginData;
 	prot["put_PluginData"] = prot["asc_putPluginData"] = prot.asc_putPluginData;
+	prot["get_Rot"] = prot["asc_getRot"] = prot.asc_getRot;
+	prot["put_Rot"] = prot["asc_putRot"] = prot.asc_putRot;
+	prot["get_RotAdd"] = prot["asc_getRotAdd"] = prot.asc_getRotAdd;
+	prot["put_RotAdd"] = prot["asc_putRotAdd"] = prot.asc_putRotAdd;
+	prot["get_FlipH"] = prot["asc_getFlipH"] = prot.asc_getFlipH;
+	prot["put_FlipH"] = prot["asc_putFlipH"] = prot.asc_putFlipH;
+	prot["get_FlipV"] = prot["asc_getFlipV"] = prot.asc_getFlipV;
+	prot["put_FlipV"] = prot["asc_putFlipV"] = prot.asc_putFlipV;
+	prot["get_FlipHInvert"] = prot["asc_getFlipHInvert"] = prot.asc_getFlipHInvert;
+	prot["put_FlipHInvert"] = prot["asc_putFlipHInvert"] = prot.asc_putFlipHInvert;
+	prot["get_FlipVInvert"] = prot["asc_getFlipVInvert"] = prot.asc_getFlipVInvert;
+	prot["put_FlipVInvert"] = prot["asc_putFlipVInvert"] = prot.asc_putFlipVInvert;
+	prot["put_ResetCrop"] = prot["asc_putResetCrop"] = prot.asc_putResetCrop;
 
 	prot["get_Title"] = prot["asc_getTitle"] = prot.asc_getTitle;
 	prot["put_Title"] = prot["asc_putTitle"] = prot.asc_putTitle;
@@ -4804,7 +5122,8 @@
 
 	window["AscCommon"].CStyleImage = CStyleImage;
 	prot = CStyleImage.prototype;
-	prot["asc_getName"] = prot["get_Name"] = prot.asc_getName;
+	prot["asc_getId"] = prot["asc_getName"] = prot["get_Name"] = prot.asc_getName;
+	prot["asc_getDisplayName"] = prot.asc_getDisplayName;
 	prot["asc_getType"] = prot["get_Type"] = prot.asc_getType;
 	prot["asc_getImage"] = prot.asc_getImage;
 

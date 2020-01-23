@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -316,6 +316,18 @@ Slide.prototype =
         return copy;
     },
 
+
+    handleAllContents: function(fCallback){
+        var sp_tree = this.cSld.spTree;
+        for(var i = 0; i < sp_tree.length; ++i){
+            if (sp_tree[i].handleAllContents){
+                sp_tree[i].handleAllContents(fCallback);
+            }
+        }
+        if(this.notesShape){
+            this.notesShape.handleAllContents(fCallback);
+        }
+    },
 
     Search: function( Str, Props, Engine, Type ){
         var sp_tree = this.cSld.spTree;
@@ -1139,6 +1151,7 @@ Slide.prototype =
                 this.notes.graphicObjects.selection.textSelection = this.notesShape;
                 var oDocContent = this.notesShape.getDocContent();
                 if(oDocContent){
+                    oDocContent.CalculateAllFields();
                     this.notesShape.transformText.tx = 3;
                     this.notesShape.transformText.ty = 3;
                     this.notesShape.invertTransformText = AscCommon.global_MatrixTransformer.Invert(this.notesShape.transformText);
@@ -1171,7 +1184,7 @@ Slide.prototype =
         if(this.showMasterSp === true || (!(this.showMasterSp === false) && (this.Layout.showMasterSp == undefined || this.Layout.showMasterSp)))
         {
             if (graphics.IsSlideBoundsCheckerType === undefined)
-                this.Layout.Master.draw(graphics);
+                this.Layout.Master.draw(graphics, this);
             else if(graphics.IsSlideBoundsCheckerType){
                 _bounds =  this.Layout.Master.bounds;
                 graphics.rect(_bounds.l, _bounds.t, _bounds.w, _bounds.h);
@@ -1181,7 +1194,7 @@ Slide.prototype =
         if(this.showMasterSp !== false)
         {
             if (graphics && graphics.IsSlideBoundsCheckerType === undefined)
-                this.Layout.draw(graphics);
+                this.Layout.draw(graphics, this);
             else{
                 _bounds =  this.Layout.bounds;
                 graphics.rect(_bounds.l, _bounds.t, _bounds.w, _bounds.h);
@@ -1439,10 +1452,7 @@ Slide.prototype =
         }
         catch (err)
         {
-            if (shape.brush != null && shape.brush.fill && shape.brush.fill.RasterImageId)
-                _ret.ImageUrl = getFullImageSrc2(shape.brush.fill.RasterImageId);
-            else
-                _ret.ImageUrl = "";
+            _ret.ImageUrl = "";
         }
         return _ret.ImageUrl;
     },
@@ -1550,6 +1560,10 @@ function fLoadComments(oObject, authors)
             commentData.m_sUserId = ("" + _wc.WriteAuthorId);
             commentData.m_sUserName = "";
             commentData.m_sTime = _wc.WriteTime;
+            commentData.m_nTimeZoneBias = _wc.timeZoneBias;
+            if (commentData.m_sTime && null != commentData.m_nTimeZoneBias) {
+                commentData.m_sOOTime = (parseInt(commentData.m_sTime) + commentData.m_nTimeZoneBias * 60000) + "";
+            }
 
             for (var k in authors)
             {
@@ -1581,6 +1595,10 @@ function fLoadComments(oObject, authors)
             commentData.m_sUserId = ("" + _wc.WriteAuthorId);
             commentData.m_sUserName = "";
             commentData.m_sTime = _wc.WriteTime;
+            commentData.m_nTimeZoneBias = _wc.timeZoneBias;
+            if (commentData.m_sTime && null != commentData.m_nTimeZoneBias) {
+                commentData.m_sOOTime = (parseInt(commentData.m_sTime) + commentData.m_nTimeZoneBias * 60000) + "";
+            }
 
             for (var k in authors)
             {

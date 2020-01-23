@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -77,15 +77,23 @@ CChartSpace.prototype.GetParaDrawing = CShape.prototype.GetParaDrawing;
 CChartSpace.prototype.handleUpdateFill = function()
 {
     this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaBrush = true;
     this.recalcInfo.recalculateBrush = true;
     this.recalcInfo.recalculateChart = true;
+    this.recalcInfo.recalculateSeriesColors = true;
+    this.recalcInfo.recalculateLegend = true;
+	this.recalcInfo.recalculateMarkers = true;
     this.addToRecalculate();
 };
 CChartSpace.prototype.handleUpdateLn = function()
 {
     this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaPen = true;
     this.recalcInfo.recalculatePen = true;
     this.recalcInfo.recalculateChart = true;
+    this.recalcInfo.recalculateSeriesColors = true;
+    this.recalcInfo.recalculateLegend = true;
+	this.recalcInfo.recalculateMarkers = true;
     this.addToRecalculate();
 };
 
@@ -142,6 +150,10 @@ CChartSpace.prototype.recalcChart = function()
 CChartSpace.prototype.recalcSeriesColors = function()
 {
     this.recalcInfo.recalculateSeriesColors = true;
+    this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaBrush = true;
+    this.recalcInfo.recalculatePlotAreaPen = true;
+    this.recalcInfo.recalculateLegend = true;
 };
 
 CChartSpace.prototype.recalcDLbls = function()
@@ -163,16 +175,28 @@ CChartSpace.prototype.handleUpdatePosition = function()
 {
     this.recalcTransform();
     this.recalcBounds();
+    for(var i = 0; i < this.userShapes.length; ++i)
+    {
+        if(this.userShapes[i].object && this.userShapes[i].object.handleUpdateExtents)
+        {
+            this.userShapes[i].object.handleUpdateExtents();
+        }
+    }
     this.addToRecalculate();
 };
-CChartSpace.prototype.handleUpdateExtents = function()
+CChartSpace.prototype.handleUpdateExtents = function(bExtX)
 {
-    this.recalcChart();
-    this.recalcBounds();
-    this.recalcTransform();
-    this.recalcWrapPolygon();
-    this.recalcTitles();
-    this.handleUpdateInternalChart();
+    var oXfrm = this.spPr && this.spPr.xfrm;
+    if(undefined === bExtX ||
+        !oXfrm || bExtX && !AscFormat.fApproxEqual(this.extX, oXfrm.extX, 0.01) || false === bExtX &&!AscFormat.fApproxEqual(this.extY, oXfrm.extY, 0.01))
+    {
+        this.recalcChart();
+        this.recalcBounds();
+        this.recalcTransform();
+        this.recalcWrapPolygon();
+        this.recalcTitles();
+        this.handleUpdateInternalChart(false);
+    }
 };
 CChartSpace.prototype.handleUpdateFlip = function()
 {
@@ -194,6 +218,7 @@ CChartSpace.prototype.handleUpdateStyle = function()
     this.recalcInfo.recalculatePen = true;
     this.recalcInfo.recalculateHiLowLines = true;
     this.recalcInfo.recalculateUpDownBars = true;
+    this.recalcInfo.recalculatePenBrush = true;
     this.handleTitlesAfterChangeTheme();
     this.recalcInfo.recalculateAxisLabels = true;
     this.recalcInfo.recalculateAxisVal = true;
@@ -205,12 +230,6 @@ CChartSpace.prototype.getCanvasContext = CShape.prototype.getCanvasContext;
 CChartSpace.prototype.getHierarchy = CShape.prototype.getHierarchy;
 CChartSpace.prototype.getParentObjects = CShape.prototype.getParentObjects;
 CChartSpace.prototype.recalculateTransform = CShape.prototype.recalculateTransform;
-CChartSpace.prototype.recalculateChart = function()
-{
-    if(this.chartObj == null)
-        this.chartObj =  new AscFormat.CChartsDrawer();
-    this.chartObj.recalculate(this);
-};
 CChartSpace.prototype.canResize = CShape.prototype.canResize;
 CChartSpace.prototype.canMove = CShape.prototype.canMove;
 
@@ -219,7 +238,7 @@ CChartSpace.prototype.recalcText = function()
 {
     this.recalcInfo.recalculateAxisLabels = true;
     this.recalcTitles2();
-    this.handleUpdateInternalChart();
+    this.handleUpdateInternalChart(false);
 };
 
 CChartSpace.prototype.setStartPage = function(pageIndex)
@@ -297,6 +316,8 @@ CChartSpace.prototype.recalculate = function()
         {
             this.recalculateSeriesColors();
             this.recalcInfo.recalculateSeriesColors = false;
+            this.recalcInfo.recalculatePenBrush = true;
+            this.recalcInfo.recalculateLegend = true;
         }
         if(this.recalcInfo.recalculateGridLines)
         {
@@ -413,6 +434,7 @@ CChartSpace.prototype.recalculate = function()
             this.recalculateWrapPolygon();
             this.recalcInfo.recalculateWrapPolygon = false;
         }
+        this.recalculateUserShapes();
         this.recalcInfo.axisLabels.length = 0;
         this.bNeedUpdatePosition = true;
         if(AscFormat.isRealNumber(this.posX) && AscFormat.isRealNumber(this.posY))
@@ -537,6 +559,57 @@ CChartSpace.prototype.Is_UseInDocument = CShape.prototype.Is_UseInDocument;
 //    this.addToRecalculate();
 //};
 
+CChartSpace.prototype.IsHdrFtr = function(bool)
+{
+    if(!this.group)
+    {
+        if(isRealObject(this.parent) && isRealObject(this.parent.DocumentContent))
+            return this.parent.DocumentContent.IsHdrFtr(bool);
+    }
+    else
+    {
+        var cur_group = this.group;
+        while(cur_group.group)
+            cur_group = cur_group.group;
+        if(isRealObject(cur_group.parent) && isRealObject(cur_group.parent.DocumentContent))
+            return cur_group.parent.DocumentContent.IsHdrFtr(bool);
+    }
+    return bool ? null : false;
+};
+
+CChartSpace.prototype.Refresh_RecalcData2 = function(pageIndex, object)
+{
+    if(object && object.getObjectType && object.getObjectType() === AscDFH.historyitem_type_Title && this.selection.title === object)
+    {
+        this.recalcInfo.recalcTitle = object;
+    }
+    else
+    {
+        var bOldRecalculateRef = this.recalcInfo.recalculateReferences;
+        this.setRecalculateInfo();
+        this.recalcInfo.recalculateReferences = bOldRecalculateRef;
+    }
+    this.addToRecalculate();
+    var HdrFtr = this.IsHdrFtr(true);
+    if (HdrFtr)
+        HdrFtr.Refresh_RecalcData2();
+    else
+    {
+        if(!this.group)
+        {
+            if(isRealObject(this.parent) && this.parent.Refresh_RecalcData2)
+                this.parent.Refresh_RecalcData2({Type: AscDFH.historyitem_Drawing_SetExtent});
+        }
+        else
+        {
+            var cur_group = this.group;
+            while(cur_group.group)
+                cur_group = cur_group.group;
+            if(isRealObject(cur_group.parent) && cur_group.parent.Refresh_RecalcData2)
+                cur_group.parent.Refresh_RecalcData2({Type: AscDFH.historyitem_Drawing_SetExtent});
+        }
+    }
+};
 function CreateUnifillSolidFillSchemeColor(colorId, tintOrShade)
 {
     var unifill = new AscFormat.CUniFill();

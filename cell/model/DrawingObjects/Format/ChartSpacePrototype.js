@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -57,7 +57,7 @@ CChartSpace.prototype.recalcText = function()
 {
     this.recalcInfo.recalculateAxisLabels = true;
     this.recalcTitles2();
-    this.handleUpdateInternalChart();
+    this.handleUpdateInternalChart(false);
 };
 
 CChartSpace.prototype.recalculateBounds = CShape.prototype.recalculateBounds;
@@ -74,6 +74,7 @@ CChartSpace.prototype.setWorksheet = CShape.prototype.setWorksheet;
 CChartSpace.prototype.handleUpdateLn = function()
 {
     this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaPen = true;
     this.addToRecalculate();
 };
 CChartSpace.prototype.setRecalculateInfo = function()
@@ -132,6 +133,8 @@ CChartSpace.prototype.recalcChart = function()
 CChartSpace.prototype.recalcSeriesColors = function()
 {
     this.recalcInfo.recalculateSeriesColors = true;
+    this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaBrush = true;
 };
 
 CChartSpace.prototype.recalcDLbls = function()
@@ -147,24 +150,32 @@ CChartSpace.prototype.handleUpdatePosition = function()
     this.recalcBounds();
   //  this.recalcDLbls();
     //this.setRecalculateInfo();
+    for(var i = 0; i < this.userShapes.length; ++i)
+    {
+        if(this.userShapes[i].object && this.userShapes[i].object.handleUpdateExtents)
+        {
+            this.userShapes[i].object.handleUpdateExtents();
+        }
+    }
     this.addToRecalculate();
-    //delete this.fromSerialize;
 };
-CChartSpace.prototype.handleUpdateExtents = function()
+CChartSpace.prototype.handleUpdateExtents = function(bExtX)
 {
-    this.recalcChart();
-    this.recalcBounds();
-    this.recalcTransform();
-    this.recalcTitles();
-    this.handleUpdateInternalChart();
-    //delete this.fromSerialize;
+    var oXfrm = this.spPr && this.spPr.xfrm;
+    if(undefined === bExtX ||
+        !oXfrm || bExtX && !AscFormat.fApproxEqual(this.extX, oXfrm.extX, 0.01) || false === bExtX &&!AscFormat.fApproxEqual(this.extY, oXfrm.extY, 0.01))
+    {
+        this.recalcChart();
+        this.recalcBounds();
+        this.recalcTransform();
+        this.recalcTitles();
+        this.handleUpdateInternalChart(false);
+    }
 };
 CChartSpace.prototype.handleUpdateFlip = function()
 {
     this.recalcTransform();
-    //this.setRecalculateInfo();
     this.addToRecalculate();
-    //delete this.fromSerialize;
 };
 CChartSpace.prototype.handleUpdateChart = function()
 {
@@ -175,6 +186,7 @@ CChartSpace.prototype.handleUpdateChart = function()
 CChartSpace.prototype.handleUpdateStyle = function()
 {
     this.recalcInfo.recalculateSeriesColors = true;
+    this.recalcInfo.recalculatePenBrush = true;
     this.recalcInfo.recalculateLegend = true;
     this.recalcInfo.recalculatePlotAreaBrush = true;
     this.recalcInfo.recalculatePlotAreaPen = true;
@@ -191,15 +203,21 @@ CChartSpace.prototype.handleUpdateStyle = function()
 CChartSpace.prototype.handleUpdateFill = function()
 {
     this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaBrush = true;
     this.recalcInfo.recalculateBrush = true;
     this.recalcInfo.recalculateChart = true;
+    this.recalcInfo.recalculateSeriesColors = true;
+	this.recalcInfo.recalculateMarkers = true;
     this.addToRecalculate();
 };
 CChartSpace.prototype.handleUpdateLn = function()
 {
     this.recalcInfo.recalculatePenBrush = true;
+    this.recalcInfo.recalculatePlotAreaPen = true;
     this.recalcInfo.recalculatePen = true;
     this.recalcInfo.recalculateChart = true;
+    this.recalcInfo.recalculateSeriesColors = true;
+	this.recalcInfo.recalculateMarkers = true;
     this.addToRecalculate();
 };
 CChartSpace.prototype.canGroup = CShape.prototype.canGroup;
@@ -303,6 +321,7 @@ CChartSpace.prototype.recalculate = function()
         {
             this.recalculateSeriesColors();
             this.recalcInfo.recalculateSeriesColors = false;
+            this.recalcInfo.recalculatePenBrush = true;
         }
         if(this.recalcInfo.recalculateGridLines)
         {
@@ -416,6 +435,8 @@ CChartSpace.prototype.recalculate = function()
             this.recalculateTextPr();
             this.recalcInfo.recalculateTextPr = false;
         }
+
+        this.recalculateUserShapes();
        // if(b_transform)
         {
             this.updateChildLabelsTransform(this.transform.tx, this.transform.ty);

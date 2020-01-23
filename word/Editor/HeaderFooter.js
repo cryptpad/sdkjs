@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -244,7 +244,7 @@ CHeaderFooter.prototype =
         {
             this.RecalcInfo.CurPage = Page_abs;
             
-            if ( docpostype_HdrFtr === this.LogicDocument.Get_DocPosType() )
+            if ( docpostype_HdrFtr === this.LogicDocument.GetDocPosType() )
             {
                 // Обновляем интерфейс, чтобы обновить настройки колонтитула, т.к. мы могли попасть в новую секцию
                 this.LogicDocument.Document_UpdateSelectionState();
@@ -330,8 +330,8 @@ CHeaderFooter.prototype =
         if (-1 === PageIndex)
             this.RecalcInfo.CurPage = -1;
 
-        var OldDocPosType = this.LogicDocument.Get_DocPosType();
-        this.LogicDocument.Set_DocPosType(docpostype_HdrFtr);
+        var OldDocPosType = this.LogicDocument.GetDocPosType();
+        this.LogicDocument.SetDocPosType(docpostype_HdrFtr);
 
         if (true === bUpdateStates && -1 !== PageIndex)
         {
@@ -351,7 +351,7 @@ CHeaderFooter.prototype =
 
     Is_ThisElementCurrent : function()
     {
-        if (this === this.Parent.CurHdrFtr && docpostype_HdrFtr === this.LogicDocument.Get_DocPosType())
+        if (this === this.Parent.CurHdrFtr && docpostype_HdrFtr === this.LogicDocument.GetDocPosType())
             return true;
 
         return false;
@@ -726,9 +726,9 @@ CHeaderFooter.prototype =
 		this.Content.PasteFormatting(TextPr, ParaPr, ApplyPara);
 	},
 
-    Remove : function(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd)
+    Remove : function(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord)
     {
-        this.Content.Remove(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd);
+        this.Content.Remove(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord);
     },
 
 	GetCursorPosXY : function()
@@ -958,7 +958,7 @@ CHeaderFooter.prototype =
 
         if ( true === editor.isStartAddShape )
         {
-            this.Content.Set_DocPosType(docpostype_DrawingObjects);
+            this.Content.SetDocPosType(docpostype_DrawingObjects);
             this.Content.Selection.Use   = true;
             this.Content.Selection.Start = true;
 
@@ -1063,6 +1063,11 @@ CHeaderFooter.prototype =
 	SplitTableCells : function(Cols, Rows)
 	{
 		this.Content.SplitTableCells(Cols, Rows);
+	},
+
+	RemoveTableCells : function()
+	{
+		this.Content.RemoveTableCells();
 	},
 
 	RemoveTable : function()
@@ -1247,9 +1252,9 @@ CHeaderFooter.prototype.SetParagraphFramePr = function(FramePr, bDelete)
 {
     return this.Content.SetParagraphFramePr(FramePr, bDelete);
 };
-CHeaderFooter.prototype.GetRevisionsChangeParagraph = function(SearchEngine)
+CHeaderFooter.prototype.GetRevisionsChangeElement = function(SearchEngine)
 {
-    return this.Content.GetRevisionsChangeParagraph(SearchEngine);
+    return this.Content.GetRevisionsChangeElement(SearchEngine);
 };
 CHeaderFooter.prototype.GetSelectionBounds = function()
 {
@@ -1302,6 +1307,31 @@ CHeaderFooter.prototype.GetAllContentControls = function(arrContentControls)
 CHeaderFooter.prototype.GetContent = function()
 {
 	return this.Content;
+};
+
+CHeaderFooter.prototype.FindWatermark = function()
+{
+    var aAllDrawings = this.Content.GetAllDrawingObjects();
+    var oCandidate = null, oDrawing;
+    for(var i = aAllDrawings.length - 1; i > -1; --i)
+    {
+        oDrawing = aAllDrawings[i];
+        if(oDrawing.IsWatermark())
+        {
+            if(null === oCandidate)
+            {
+                oCandidate = oDrawing;
+            }
+            else
+            {
+                if(oCandidate.getDrawingArrayType() < oDrawing.getDrawingArrayType() || ComparisonByZIndexSimple(oDrawing, oCandidate))
+                {
+                    oCandidate = oDrawing;
+                }
+            }
+        }
+    }
+    return oCandidate;
 };
 
 //-----------------------------------------------------------------------------------
@@ -1459,7 +1489,7 @@ CHeaderFooterController.prototype =
                 var bEven   = ( true === SectionPageInfo.bEven  && true === EvenAndOddHeaders      ? true : false );
                 var bHeader = ( hdrftr_Header === this.CurHdrFtr.Type ? true : false );
 
-                Pr.LinkToPrevious = ( null === SectPr.Get_HdrFtr( bHeader, bFirst, bEven ) ? true : false );
+                Pr.LinkToPrevious = ( null === SectPr.GetHdrFtr( bHeader, bFirst, bEven ) ? true : false );
             }
 
             Pr.Locked = this.Lock.Is_Locked();
@@ -1686,7 +1716,7 @@ CHeaderFooterController.prototype =
     },
 
     // Запрашиваем низ у верхнего колонтитула для данной страницы
-    Get_HdrFtrLines : function(PageIndex)
+    GetHdrFtrLines : function(PageIndex)
     {
         var Header = null;
         var Footer = null;
@@ -1937,10 +1967,10 @@ CHeaderFooterController.prototype =
 			return this.CurHdrFtr.PasteFormatting(TextPr, ParaPr, ApplyPara);
 	},
 
-    Remove : function(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd)
+    Remove : function(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord)
     {
         if ( null != this.CurHdrFtr )
-            return this.CurHdrFtr.Remove(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd);
+            return this.CurHdrFtr.Remove(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord);
     },
 
 	GetCursorPosXY : function()
@@ -2204,9 +2234,9 @@ CHeaderFooterController.prototype =
                 if ( false === editor.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_HdrFtr) )
                 {
                     // Меняем старый режим редактирования, чтобы при Undo/Redo возвращаться в режим редактирования документа
-                    this.LogicDocument.Set_DocPosType(docpostype_Content);
-                    History.Create_NewPoint(AscDFH.historydescription_Document_AddHeader);
-                    this.LogicDocument.Set_DocPosType(docpostype_HdrFtr);
+                    this.LogicDocument.SetDocPosType(docpostype_Content);
+                    this.LogicDocument.StartAction(AscDFH.historydescription_Document_AddHeader);
+                    this.LogicDocument.SetDocPosType(docpostype_HdrFtr);
                     HdrFtr = this.LogicDocument.Create_SectionHdrFtr( hdrftr_Header, PageIndex );
 
                     if (this.CurHdrFtr)
@@ -2215,6 +2245,7 @@ CHeaderFooterController.prototype =
                     this.CurHdrFtr = HdrFtr;
 
                     this.LogicDocument.Recalculate();
+                    this.LogicDocument.FinalizeAction();
                 }
                 else
                     return false;
@@ -2229,9 +2260,9 @@ CHeaderFooterController.prototype =
                 if ( false === editor.WordControl.m_oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_HdrFtr) )
                 {
                     // Меняем старый режим редактирования, чтобы при Undo/Redo возвращаться в режим редактирования документа
-                    this.LogicDocument.Set_DocPosType(docpostype_Content);
-                    History.Create_NewPoint(AscDFH.historydescription_Document_AddFooter);
-                    this.LogicDocument.Set_DocPosType(docpostype_HdrFtr);
+                    this.LogicDocument.SetDocPosType(docpostype_Content);
+                    this.LogicDocument.StartAction(AscDFH.historydescription_Document_AddFooter);
+                    this.LogicDocument.SetDocPosType(docpostype_HdrFtr);
                     HdrFtr = this.LogicDocument.Create_SectionHdrFtr( hdrftr_Footer, PageIndex );
 
 					if (this.CurHdrFtr)
@@ -2240,6 +2271,7 @@ CHeaderFooterController.prototype =
 					this.CurHdrFtr = HdrFtr;
 
                     this.LogicDocument.Recalculate();
+                    this.LogicDocument.FinalizeAction();
                 }
                 else
                     return false;
@@ -2262,17 +2294,17 @@ CHeaderFooterController.prototype =
 
         // В зависимости от страницы и позиции на странице мы активируем(делаем текущим)
         // соответствующий колонтитул
+        var oPrevHdrFtr = this.CurHdrFtr;
 
-        var OldHdrFtr = this.CurHdrFtr;
-        this.CurHdrFtr = HdrFtr;
+		// Очищаем селект, если он был в предыдущем колонтитуле
+		if (oPrevHdrFtr && (oPrevHdrFtr !== HdrFtr || OldPage != this.CurPage))
+		{
+			oPrevHdrFtr.RemoveSelection();
+		}
 
-        if ( null != OldHdrFtr && (OldHdrFtr != this.CurHdrFtr || OldPage != this.CurPage) )
-        {
-            // Удаляем селект, если он был на предыдущем колонтитуле
-            OldHdrFtr.RemoveSelection();
-        }
+		this.CurHdrFtr = HdrFtr;
 
-        if ( null != this.CurHdrFtr )
+		if ( null != this.CurHdrFtr )
         {
             this.CurHdrFtr.Selection_SetStart( X, Y, PageIndex, MouseEvent );
             if ( true === bActivate )
@@ -2299,7 +2331,7 @@ CHeaderFooterController.prototype =
             // не может быть разбит на несколько страниц
             var ResY = Y;
 
-            if (docpostype_DrawingObjects != this.CurHdrFtr.Content.Get_DocPosType())
+            if (docpostype_DrawingObjects != this.CurHdrFtr.Content.GetDocPosType())
             {
                 if ( PageIndex > this.CurPage )
                     ResY = this.LogicDocument.Get_PageLimits(this.CurPage).YLimit + 10;
@@ -2356,9 +2388,9 @@ CHeaderFooterController.prototype =
             return { X : -1, Y : -1, Height : -1 };
     },
 
-	GetCurrentParagraph : function(bIgnoreSelection, arrSelectedParagraphs)
+	GetCurrentParagraph : function(bIgnoreSelection, arrSelectedParagraphs, oPr)
 	{
-		return this.CurHdrFtr.GetCurrentParagraph(bIgnoreSelection, arrSelectedParagraphs);
+		return this.CurHdrFtr.GetCurrentParagraph(bIgnoreSelection, arrSelectedParagraphs, oPr);
 	},
 
 	StartSelectionFromCurPos : function()
@@ -2433,6 +2465,12 @@ CHeaderFooterController.prototype =
 	{
 		if (null != this.CurHdrFtr)
 			this.CurHdrFtr.SplitTableCells(Cols, Rows);
+	},
+
+	RemoveTableCells : function()
+	{
+		if (this.CurHdrFtr)
+			this.CurHdrFtr.RemoveTableCells();
 	},
 
 	RemoveTable : function()
@@ -2574,6 +2612,13 @@ CHeaderFooterController.prototype.GetSimilarNumbering = function(oEngine)
 	if (this.CurHdrFtr)
 		this.CurHdrFtr.Content.GetSimilarNumbering(oEngine)
 };
+CHeaderFooterController.prototype.GetPlaceHolderObject = function()
+{
+	if (this.CurHdrFtr)
+		return this.CurHdrFtr.Content.GetPlaceHolderObject();
+
+	return null;
+};
 CHeaderFooterController.prototype.SetParagraphFramePr = function(FramePr, bDelete)
 {
     if (null !== this.CurHdrFtr)
@@ -2653,6 +2698,13 @@ CHeaderFooterController.prototype.HavePageCountElement = function()
 	}
 
 	return nStartPage;
+};
+CHeaderFooterController.prototype.GetAllFields = function(isUseSelection, arrFields)
+{
+	if (this.CurHdrFtr)
+		return this.CurHdrFtr.GetContent().GetAllFields(isUseSelection, arrFields);
+
+	return arrFields ? arrFields : [];
 };
 
 function CHdrFtrPage()

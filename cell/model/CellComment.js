@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -105,7 +105,7 @@ function (window, undefined) {
 	asc_CCommentCoords.prototype.isValid = function() {
 		return null !== this.nLeft && null !== this.nTop && null !== this.nRight && null !== this.nBottom &&
 			null !== this.nLeftOffset && null !== this.nTopOffset && null !== this.nRightOffset && null !== this.nBottomOffset &&
-			null !== this.dLeftMM && null !== this.dTopMM && null !== this.dWidthMM && null !== this.dHeightMM;
+			null !== this.dWidthMM && null !== this.dHeightMM;
 	};
 	asc_CCommentCoords.prototype.Read_FromBinary2 = function(r) {
 		this.nRow = r.GetLong();
@@ -120,8 +120,12 @@ function (window, undefined) {
 		this.nBottom = r.GetLong();
 		this.nBottomOffset = r.GetLong();
 
-		this.dLeftMM = r.GetDouble();
-		this.dTopMM = r.GetDouble();
+		if (r.GetBool()) {
+			this.dLeftMM = r.GetDouble();
+		}
+		if (r.GetBool()) {
+			this.dTopMM = r.GetDouble();
+		}
 		this.dWidthMM = r.GetDouble();
 		this.dHeightMM = r.GetDouble();
 
@@ -141,8 +145,18 @@ function (window, undefined) {
 		w.WriteLong(this.nBottom);
 		w.WriteLong(this.nBottomOffset);
 
-		w.WriteDouble(this.dLeftMM);
-		w.WriteDouble(this.dTopMM);
+		if (null != this.dLeftMM) {
+			w.WriteBool(true);
+			w.WriteDouble(this.dLeftMM);
+		} else {
+			w.WriteBool(false);
+		}
+		if (null != this.dTopMM) {
+			w.WriteBool(true);
+			w.WriteDouble(this.dTopMM);
+		} else {
+			w.WriteBool(false);
+		}
 		w.WriteDouble(this.dWidthMM);
 		w.WriteDouble(this.dHeightMM);
 
@@ -163,6 +177,8 @@ function (window, undefined) {
 		this.nId = null;
 		this.oParent = null;
 		this.nLevel = 0;
+		this.sGuid = AscCommon.CreateGUID();
+		this.sProviderId = "";
 
 		// Common
 		this.sText = "";
@@ -191,6 +207,8 @@ function (window, undefined) {
 		this.nId = comment.nId;
 		this.oParent = comment.oParent;
 		this.nLevel = (null === this.oParent) ? 0 : this.oParent.asc_getLevel() + 1;
+		this.sGuid = comment.sGuid;
+		this.sProviderId = comment.sProviderId;
 
 		// Common
 		this.sText = comment.sText;
@@ -234,6 +252,9 @@ function (window, undefined) {
 	asc_CCommentData.prototype.asc_putId = function(val) { this.nId = val; };
 	asc_CCommentData.prototype.asc_getId = function() { return this.nId; };
 
+	asc_CCommentData.prototype.asc_putGuid = function(val) { this.sGuid = val; };
+	asc_CCommentData.prototype.asc_getGuid = function() { return this.sGuid; };
+
 	asc_CCommentData.prototype.asc_putLevel = function(val) { this.nLevel = val; };
 	asc_CCommentData.prototype.asc_getLevel = function() { return this.nLevel; };
 
@@ -249,8 +270,11 @@ function (window, undefined) {
 	asc_CCommentData.prototype.asc_putOnlyOfficeTime = function(val) { this.sOOTime = val; };
 	asc_CCommentData.prototype.asc_getOnlyOfficeTime = function() { return this.sOOTime; };
 
-	asc_CCommentData.prototype.asc_putUserId = function(val) { this.sUserId = val; };
+	asc_CCommentData.prototype.asc_putUserId = function(val) { this.sUserId = val; this.sProviderId = "Teamlab"; };
 	asc_CCommentData.prototype.asc_getUserId = function() { return this.sUserId; };
+
+	asc_CCommentData.prototype.asc_putProviderId = function(val) { this.sProviderId = val; };
+	asc_CCommentData.prototype.asc_getProviderId = function() { return this.sProviderId; };
 
 	asc_CCommentData.prototype.asc_putUserName = function(val) { this.sUserName = val; };
 	asc_CCommentData.prototype.asc_getUserName = function() { return this.sUserName; };
@@ -304,6 +328,8 @@ function (window, undefined) {
 		this.bDocument = r.GetBool();
 		this.bSolved = r.GetBool();
 		this.bHidden = r.GetBool();
+		this.sGuid = r.GetString2();
+		this.sProviderId = r.GetString2();
 
 		var length = r.GetLong();
 		for (var i = 0; i < length; ++i) {
@@ -327,6 +353,8 @@ function (window, undefined) {
 		w.WriteBool(this.bDocument);
 		w.WriteBool(this.bSolved);
 		w.WriteBool(this.bHidden);
+		w.WriteString2(this.sGuid);
+		w.WriteString2(this.sProviderId);
 
 		w.WriteLong(this.aReplies.length);
 		for (var i = 0; i < this.aReplies.length; ++i) {
@@ -390,18 +418,21 @@ CCellCommentator.prototype.isLockedComment = function(oComment, callbackFunc) {
 		return res;
 	};
 
-	CCellCommentator.prototype.moveRangeComments = function (from, to, copy) {
+	CCellCommentator.prototype.moveRangeComments = function (from, to, copy, opt_wsTo) {
 		if (from && to) {
 			var colOffset = to.c1 - from.c1;
 			var rowOffset = to.r1 - from.r1;
 
-			this.model.workbook.handlers.trigger("asc_onHideComment");
+			var modelTo = opt_wsTo ? opt_wsTo.model : this.model;
+			var cellCommentatorTo = opt_wsTo ? opt_wsTo.cellCommentator : this;
+
+			modelTo.workbook.handlers.trigger("asc_onHideComment");
 
 			var comments = this.getCommentsRange(from);
 			if (!copy) {
 				this._deleteCommentsRange(comments);
 			}
-			this.deleteCommentsRange(to);
+			cellCommentatorTo.deleteCommentsRange(to);
 
 			for (var i = 0; i < comments.length; ++i) {
 				var newComment = comments[i];
@@ -410,7 +441,7 @@ CCellCommentator.prototype.isLockedComment = function(oComment, callbackFunc) {
 				if (copy) {
 					newComment.setId();
 				}
-				this.addComment(newComment, true);
+				cellCommentatorTo.addComment(newComment, true);
 			}
 		}
 	};
@@ -426,10 +457,10 @@ CCellCommentator.prototype.isLockedComment = function(oComment, callbackFunc) {
 		History.EndTransaction();
 	};
 
-	CCellCommentator.prototype.getCommentByXY = function (x, y) {
+	CCellCommentator.prototype.getCommentByXY = function (x, y, excludeHidden) {
 		var findCol = this.worksheet._findColUnderCursor(x, true);
 		var findRow = this.worksheet._findRowUnderCursor(y, true);
-		return (findCol && findRow) ? this.getComment(findCol.col, findRow.row) : null;
+		return (findCol && findRow) ? this.getComment(findCol.col, findRow.row, excludeHidden) : null;
 	};
 
 	CCellCommentator.prototype.drawCommentCells = function () {
@@ -773,7 +804,7 @@ CCellCommentator.prototype.cleanLastSelection = function() {
 		this._showComment(this.findComment(id), bNew);
 	};
 	CCellCommentator.prototype.showCommentByXY = function (x, y) {
-		this._showComment(this.getCommentByXY(x, y), false);
+		this._showComment(this.getCommentByXY(x, y, true), false);
 	};
 
 	CCellCommentator.prototype._showComment = function (comment, bNew) {
@@ -788,7 +819,7 @@ CCellCommentator.prototype.cleanLastSelection = function() {
 		}
 	};
 
-CCellCommentator.prototype.selectComment = function(id, bMove) {
+CCellCommentator.prototype.selectComment = function(id) {
 	var comment = this.findComment(id);
 	var metrics;
 
@@ -802,26 +833,11 @@ CCellCommentator.prototype.selectComment = function(id, bMove) {
 
 		var col = comment.asc_getCol();
 		var row = comment.asc_getRow();
-		var fvc = this.worksheet.getFirstVisibleCol(true);
-		var fvr = this.worksheet.getFirstVisibleRow(true);
-		var lvc = this.worksheet.getLastVisibleCol();
-		var lvr = this.worksheet.getLastVisibleRow();
 
-		var offset;
-		if ( bMove ) {
-			if ( (row < fvr) || (row > lvr) ) {
-				offset = row - fvr - Math.round(( lvr - fvr ) / 2);
-				this.worksheet.scrollVertical(offset);
-				this.worksheet.handlers.trigger("reinitializeScroll", AscCommonExcel.c_oAscScrollType.ScrollVertical);
-			}
-			if ( (col < fvc) || (col > lvc) ) {
-				offset = col - fvc - Math.round(( lvc - fvc ) / 2);
-				this.worksheet.scrollHorizontal(offset);
-				this.worksheet.handlers.trigger("reinitializeScroll", AscCommonExcel.c_oAscScrollType.ScrollHorizontal);
-			}
-		}
+		this.worksheet._scrollToRange(new Asc.Range(col, row, col, row));
 
-		if (metrics = this.worksheet.getCellMetrics(col, row)) {
+		metrics = this.worksheet.getCellMetrics(col, row);
+		if (metrics) {
 			var extraOffset = 1;
 			this.overlayCtx.ctx.globalAlpha = 0.2;
 			this.overlayCtx.beginPath();
@@ -943,14 +959,14 @@ CCellCommentator.prototype.removeComment = function(id, bNoEvent, bNoAscLock, bN
 
 // Extra functions
 
-	CCellCommentator.prototype.getComment = function (col, row) {
+	CCellCommentator.prototype.getComment = function (col, row, excludeHidden) {
 		// Array of root items
 		var comment = null;
 		var _col = col, _row = row, mergedRange = null;
 		var aComments = this.model.aComments;
 		var length = aComments.length;
 
-		if (this.hiddenComments()) {
+		if (excludeHidden && this.hiddenComments()) {
 			return comment;
 		}
 
@@ -975,7 +991,7 @@ CCellCommentator.prototype.removeComment = function(id, bNoEvent, bNoAscLock, bN
 					}
 				}
 				if (comment) {
-					return this._checkHidden(comment) ? null : comment;
+					return (excludeHidden && this._checkHidden(comment)) ? null : comment;
 				}
 			}
 		}
@@ -1187,7 +1203,7 @@ CCellCommentator.prototype.Undo = function(type, data) {
 
 		case AscCH.historyitem_Comment_Coords:
 			if (data.from) {
-				comment = this.getComment(data.from.nCol, data.from.nRow);
+				comment = this.getComment(data.from.nCol, data.from.nRow, false);
 				if (comment) {
 					comment.coords = data.from.clone();
 				}
@@ -1258,7 +1274,7 @@ CCellCommentator.prototype.Redo = function(type, data) {
 
 		case AscCH.historyitem_Comment_Coords:
 			if (data.to) {
-				comment = this.getComment(data.to.nCol, data.to.nRow);
+				comment = this.getComment(data.to.nCol, data.to.nRow, false);
 				if (comment) {
 					comment.coords = data.to.clone();
 				}
@@ -1305,6 +1321,8 @@ CCellCommentator.prototype.Redo = function(type, data) {
 	prot["asc_getUserId"] = prot.asc_getUserId;
 	prot["asc_putUserName"] = prot.asc_putUserName;
 	prot["asc_getUserName"] = prot.asc_getUserName;
+	prot["asc_putProviderId"] = prot.asc_putProviderId;
+	prot["asc_getProviderId"] = prot.asc_getProviderId;
 	prot["asc_putDocumentFlag"] = prot.asc_putDocumentFlag;
 	prot["asc_getDocumentFlag"] = prot.asc_getDocumentFlag;
 	prot["asc_putHiddenFlag"] = prot.asc_putHiddenFlag;
@@ -1315,4 +1333,6 @@ CCellCommentator.prototype.Redo = function(type, data) {
 	prot["asc_getReply"] = prot.asc_getReply;
 	prot["asc_addReply"] = prot.asc_addReply;
 	prot["asc_getMasterCommentId"] = prot.asc_getMasterCommentId;
+	prot["asc_putGuid"] = prot.asc_putGuid;
+	prot["asc_getGuid"] = prot.asc_getGuid;
 })(window);

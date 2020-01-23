@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -38,7 +38,6 @@
 		 * -----------------------------------------------------------------------------
 		 */
 		var asc_applyFunction	= AscCommonExcel.applyFunction;
-		var asc_Range			= Asc.Range;
 
 		var c_oAscLockTypes = AscCommon.c_oAscLockTypes;
 
@@ -296,8 +295,14 @@
 
 					var drawing = AscCommon.g_oTableId.Get_ById(oLock.Element["rangeOrObjectId"]);
 					if(drawing && drawing.lockType !== c_oAscLockTypes.kLockTypeNone) {
+						var bLocked = drawing.lockType !== c_oAscLockTypes.kLockTypeNone && drawing.lockType !== c_oAscLockTypes.kLockTypeMine;
 						drawing.lockType = c_oAscLockTypes.kLockTypeNone;
 						bRedrawGraphicObjects = true;
+						if(drawing instanceof AscCommon.CCore) {
+							if(bLocked) {
+								Asc.editor && Asc.editor.sendEvent("asc_onLockCore", false);
+							}
+						}
 					}
 					if(!bUnlockDefName){
 						bUnlockDefName = this.handlers.trigger("checkDefNameLock", oLock);
@@ -315,8 +320,14 @@
 						if (!this.handlers.trigger("checkCommentRemoveLock", oLock.Element)) {
 							drawing = AscCommon.g_oTableId.Get_ById(oLock.Element["rangeOrObjectId"]);
 							if(drawing && drawing.lockType !== c_oAscLockTypes.kLockTypeNone) {
+								var bLocked = drawing.lockType !== c_oAscLockTypes.kLockTypeNone && drawing.lockType !== c_oAscLockTypes.kLockTypeMine;
 								drawing.lockType = c_oAscLockTypes.kLockTypeNone;
 								bRedrawGraphicObjects = true;
+								if(drawing instanceof AscCommon.CCore) {
+									if(bLocked) {
+										Asc.editor && Asc.editor.sendEvent("asc_onLockCore", false);
+									}
+								}
 							}
 							if(!bUnlockDefName){
 								bUnlockDefName = this.handlers.trigger("checkDefNameLock", oLock);
@@ -364,6 +375,8 @@
 //                }
 
 				this.handlers.trigger("updateAllLayoutsLock");
+				this.handlers.trigger("asc_onLockPrintArea");
+				this.handlers.trigger("updateAllHeaderFooterLock");
 
 				if (0 === this.m_nUseType)
 					this.m_nUseType = 1;
@@ -525,7 +538,7 @@
 					if (null === c1 || null === c2 || null === r1 || null === r2)
 						continue;
 
-					oRangeOrObjectId = new asc_Range(c1, r1, c2, r2);
+					oRangeOrObjectId = new Asc.Range(c1, r1, c2, r2);
 				}
 
 				result.push(oRangeOrObjectId);

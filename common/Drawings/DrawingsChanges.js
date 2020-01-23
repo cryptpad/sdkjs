@@ -1,3 +1,37 @@
+/*
+ * (c) Copyright Ascensio System SIA 2010-2019
+ *
+ * This program is a free software product. You can redistribute it and/or
+ * modify it under the terms of the GNU Affero General Public License (AGPL)
+ * version 3 as published by the Free Software Foundation. In accordance with
+ * Section 7(a) of the GNU AGPL its Section 15 shall be amended to the effect
+ * that Ascensio System SIA expressly excludes the warranty of non-infringement
+ * of any third-party rights.
+ *
+ * This program is distributed WITHOUT ANY WARRANTY; without even the implied
+ * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
+ * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
+ *
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
+ *
+ * The  interactive user interfaces in modified source and object code versions
+ * of the Program must display Appropriate Legal Notices, as required under
+ * Section 5 of the GNU AGPL version 3.
+ *
+ * Pursuant to Section 7(b) of the License you must retain the original Product
+ * logo when distributing the program. Pursuant to Section 7(e) we decline to
+ * grant you any rights under trademark law for use of our trademarks.
+ *
+ * All the Product's GUI elements, including illustrations and icon sets, as
+ * well as technical writing content are licensed under the terms of the
+ * Creative Commons Attribution-ShareAlike 4.0 International. See the License
+ * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
+ *
+ */
+
+"use strict";
+
 (function (window, undefined) {
     var drawingsChangesMap = {};
     var drawingConstructorsMap = {};
@@ -765,8 +799,8 @@
         if(bIsArray){
             Writer.WriteLong(Pr.length);
             for(var i = 0; i < Pr.length; ++i){
-                Writer.WriteLong(Pr[i].sqref.c1);
-                Writer.WriteLong(Pr[i].sqref.r1);
+                Writer.WriteLong(Pr[i].sqRef.c1);
+                Writer.WriteLong(Pr[i].sqRef.r1);
                 Writer.WriteString2(Pr[i].f);
             }
         }
@@ -782,7 +816,7 @@
                 var oSparkline = new AscCommonExcel.sparkline();
                 var col = Reader.GetLong();
                 var row = Reader.GetLong();
-                oSparkline.sqref = new Asc.Range(col, row, col, row);
+                oSparkline.sqRef = new Asc.Range(col, row, col, row);
                 oSparkline.setF(Reader.GetString2());
                 RetPr.push(oSparkline);
             }
@@ -847,8 +881,8 @@
         var bIsObject = AscCommon.isRealObject(this.sparkline);
         Writer.WriteBool(bIsObject);
         if(bIsObject){
-            Writer.WriteLong(this.sparkline.sqref.c1);
-            Writer.WriteLong(this.sparkline.sqref.r1);
+            Writer.WriteLong(this.sparkline.sqRef.c1);
+            Writer.WriteLong(this.sparkline.sqRef.r1);
             Writer.WriteString2(this.sparkline.f);
         }
         Writer.WriteBool(this.bReverse === true);
@@ -859,7 +893,7 @@
             this.sparkline = new AscCommonExcel.sparkline();
             var col = Reader.GetLong();
             var row = Reader.GetLong();
-            this.sparkline.sqref = new Asc.Range(col, row, col, row);
+            this.sparkline.sqRef = new Asc.Range(col, row, col, row);
             this.sparkline.setF(Reader.GetString2());
         }
         this.bReverse = Reader.GetBool();
@@ -867,7 +901,7 @@
 
     CChangesSparklinesRemoveData.prototype.Undo = function(){
         if(this.bReverse){
-            this.Class.remove(this.sparkline.sqref);
+            this.Class.remove(this.sparkline.sqRef);
         }
         else{
             this.Class.arrSparklines.push(this.sparkline);
@@ -879,7 +913,7 @@
             this.Class.arrSparklines.push(this.sparkline);
         }
         else{
-            this.Class.remove(this.sparkline.sqref);
+            this.Class.remove(this.sparkline.sqRef);
         }
         this.Class.cleanCache();
     };

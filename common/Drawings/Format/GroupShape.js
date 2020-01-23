@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -114,6 +114,13 @@ function CGroupShape()
         {
             if(this.spTree[i].documentGetAllFontNames)
                 this.spTree[i].documentGetAllFontNames(allFonts);
+        }
+    };
+    CGroupShape.prototype.handleAllContents = function(fCallback)
+    {
+        for(var i = 0; i < this.spTree.length; ++i)
+        {
+                this.spTree[i].handleAllContents(fCallback);
         }
     };
     CGroupShape.prototype.getAllDocContents = function(aDocContents)
@@ -274,6 +281,11 @@ function CGroupShape()
     CGroupShape.prototype.copy = function(oIdMap, bSourceFormatting)
     {
         var copy = new CGroupShape();
+        this.copy2(copy, oIdMap, bSourceFormatting);
+        return copy;
+    };
+    CGroupShape.prototype.copy2 = function(copy, oIdMap, bSourceFormatting)
+    {
         if(this.nvGrpSpPr)
         {
             copy.setNvGrpSpPr(this.nvGrpSpPr.createDuplicate());
@@ -309,10 +321,6 @@ function CGroupShape()
         copy.cachedPixH = this.cachedPixH;
         copy.cachedPixW = this.cachedPixW;
         copy.setLocks(this.locks);
-        if(this.fromSerialize)
-        {
-            copy.setBFromSerialize(true);
-        }
         return copy;
     };
 
@@ -423,11 +431,22 @@ function CGroupShape()
         if(this.checkNeedRecalculate && this.checkNeedRecalculate()){
             return;
         }
+        var oClipRect;
+        if(!graphics.IsSlideBoundsCheckerType){
+            oClipRect = this.getClipRect();
+        }
+        if(oClipRect){
+            graphics.SaveGrState();
+            graphics.AddClipRect(oClipRect.x, oClipRect.y, oClipRect.w, oClipRect.h);
+        }
         for(var i = 0; i < this.spTree.length; ++i)
             this.spTree[i].draw(graphics);
 
 
         this.drawLocks(this.transform, graphics);
+        if(oClipRect){
+            graphics.RestoreGrState();
+        }
         graphics.reset();
         graphics.SetIntegerGrid(true);
     };
@@ -590,7 +609,7 @@ function CGroupShape()
                 }
 
 
-                if(this.drawingBase  && this.fromSerialize)
+                if(this.drawingBase && !this.group)
                 {
                     var metrics = this.drawingBase.getGraphicObjectMetrics();
                     var rot = 0;
@@ -1123,10 +1142,10 @@ function CGroupShape()
         return bRet;
     };
 
-    CGroupShape.prototype.GetRevisionsChangeParagraph = function(SearchEngine){
+    CGroupShape.prototype.GetRevisionsChangeElement = function(SearchEngine){
         var i;
         if(this.selectedObjects.length === 0){
-            if(SearchEngine.Get_Direction() > 0){
+            if(SearchEngine.GetDirection() > 0){
                 i = 0;
             }
             else{
@@ -1134,7 +1153,7 @@ function CGroupShape()
             }
         }
         else{
-            if(SearchEngine.Get_Direction() > 0){
+            if(SearchEngine.GetDirection() > 0){
                 for(i = 0; i < this.arrGraphicObjects.length; ++i){
                     if(this.arrGraphicObjects[i].selected){
                         break;
@@ -1155,11 +1174,11 @@ function CGroupShape()
                 }
             }
         }
-        while(!SearchEngine.Is_Found()){
-            if(this.arrGraphicObjects[i].GetRevisionsChangeParagraph){
-                this.arrGraphicObjects[i].GetRevisionsChangeParagraph(SearchEngine);
+        while(!SearchEngine.IsFound()){
+            if(this.arrGraphicObjects[i].GetRevisionsChangeElement){
+                this.arrGraphicObjects[i].GetRevisionsChangeElement(SearchEngine);
             }
-            if(SearchEngine.Get_Direction() > 0){
+            if(SearchEngine.GetDirection() > 0){
                 if(i === this.arrGraphicObjects.length - 1){
                     break;
                 }
@@ -1361,6 +1380,17 @@ function CGroupShape()
             if(this.spTree[_shape_index].getObjectType() === AscDFH.historyitem_type_Shape)
             {
                 this.spTree[_shape_index].changePresetGeom(preset);
+            }
+        }
+    };
+
+    CGroupShape.prototype.changeShadow = function (oShadow) {
+
+        for(var _shape_index = 0; _shape_index < this.spTree.length; ++_shape_index)
+        {
+            if(this.spTree[_shape_index].changeShadow)
+            {
+                this.spTree[_shape_index].changeShadow(oShadow);
             }
         }
     };
@@ -1615,9 +1645,6 @@ function CGroupShape()
 
     CGroupShape.prototype.setDrawingBaseCoords = CShape.prototype.setDrawingBaseCoords;
 
-    CGroupShape.prototype.deleteBFromSerialize = CShape.prototype.deleteBFromSerialize;
-
-    CGroupShape.prototype.setBFromSerialize = CShape.prototype.setBFromSerialize;
 
     CGroupShape.prototype.calculateSnapArrays = function(snapArrayX, snapArrayY)
     {
@@ -1797,6 +1824,21 @@ function CGroupShape()
 
     CGroupShape.prototype.getCopyWithSourceFormatting = function(oIdMap){
         return this.copy(oIdMap, true);
+    };
+
+    CGroupShape.prototype.GetAllFields = function(isUseSelection, arrFields){
+        var _arrFields = arrFields ? arrFields : [], i;
+        if(isUseSelection){
+            for(i = 0; i < this.selectedObjects.length; ++i){
+                this.selectedObjects[i].GetAllFields(isUseSelection, _arrFields);
+            }
+        }
+        else{
+            for(i = 0; i < this.spTree.length; ++i){
+                this.spTree[i].GetAllFields(isUseSelection, _arrFields);
+            }
+        }
+        return _arrFields;
     };
     //--------------------------------------------------------export----------------------------------------------------
     window['AscFormat'] = window['AscFormat'] || {};

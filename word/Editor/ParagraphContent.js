@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -109,6 +109,7 @@ var para_InlineLevelSdt            = 0x0044; // Внутристроковый �
 var para_FieldChar                 = 0x0045;
 var para_InstrText                 = 0x0046;
 var para_Bookmark                  = 0x0047;
+var para_RevisionMove              = 0x0048;
 
 var break_Line   = 0x01;
 var break_Page   = 0x02;
@@ -225,10 +226,34 @@ CRunElementBase.prototype.GetType = function()
 	return this.Type;
 };
 /**
+ * Проверяем является ли данный элемент диакритическим символом
+ * @returns {boolean}
+ */
+CRunElementBase.prototype.IsDiacriticalSymbol = function()
+{
+	return false;
+};
+/**
  * Проверять ли автозамену на вводе данного элемента
  * @returns {boolean}
  */
 CRunElementBase.prototype.CanStartAutoCorrect = function()
+{
+	return false;
+};
+/**
+ * Является ли данный элемент символом пунктуации
+ * @returns {boolean}
+ */
+CRunElementBase.prototype.IsPunctuation = function()
+{
+	return false;
+};
+/**
+ * Проверяем является ли элемент символом точки
+ * @returns {boolean}
+ */
+CRunElementBase.prototype.IsDot = function()
 {
 	return false;
 };
@@ -273,7 +298,7 @@ ParaText.prototype.Draw = function(X, Y, Context)
 	if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SCRIPT && this.Flags & PARATEXT_FLAGS_FONTKOEF_SMALLCAPS)
 		FontKoef = smallcaps_and_script_koef;
 	else if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SCRIPT)
-		FontKoef = vertalign_Koef_Size;
+		FontKoef = AscCommon.vaKSize;
 	else if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SMALLCAPS)
 		FontKoef = smallcaps_Koef;
 
@@ -330,7 +355,7 @@ ParaText.prototype.Measure = function(Context, TextPr)
 	if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SCRIPT && this.Flags & PARATEXT_FLAGS_FONTKOEF_SMALLCAPS)
 		FontKoef = smallcaps_and_script_koef;
 	else if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SCRIPT)
-		FontKoef = vertalign_Koef_Size;
+		FontKoef = AscCommon.vaKSize;
 	else if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SMALLCAPS)
 		FontKoef = smallcaps_Koef;
 
@@ -362,14 +387,11 @@ ParaText.prototype.Copy = function()
 };
 ParaText.prototype.Is_NBSP = function()
 {
-	return ( this.Value === nbsp_charcode ? true : false);
+	return (this.Value === nbsp_charcode);
 };
-ParaText.prototype.Is_Punctuation = function()
+ParaText.prototype.IsPunctuation = function()
 {
-	if (undefined !== AscCommon.g_aPunctuation[this.Value])
-		return true;
-
-	return false;
+	return !!(undefined !== AscCommon.g_aPunctuation[this.Value]);
 };
 ParaText.prototype.Is_Number = function()
 {
@@ -469,6 +491,14 @@ ParaText.prototype.CanStartAutoCorrect = function()
 	|| 39 === this.Value
 	|| 45 === this.Value);
 };
+ParaText.prototype.IsDiacriticalSymbol = function()
+{
+	return !!(0x0300 <= this.Value && this.Value <= 0x036F);
+};
+ParaText.prototype.IsDot = function()
+{
+	return !!(this.Value === 0x002E);
+};
 
 /**
  * Класс представляющий пробелбный символ
@@ -482,6 +512,7 @@ function ParaSpace()
     this.Flags        = 0x00000000 | 0;
     this.Width        = 0x00000000 | 0;
     this.WidthVisible = 0x00000000 | 0;
+    this.WidthOrigin  = 0x00000000 | 0;
 }
 ParaSpace.prototype = Object.create(CRunElementBase.prototype);
 ParaSpace.prototype.constructor = ParaSpace;
@@ -511,8 +542,9 @@ ParaSpace.prototype.Measure = function(Context, TextPr)
 
 	var Temp = Context.MeasureCode(0x20);
 
-	var ResultWidth = (Math.max((Temp.Width + TextPr.Spacing), 0) * 16384) | 0;
-	this.Width      = ResultWidth;
+	var ResultWidth  = (Math.max((Temp.Width + TextPr.Spacing), 0) * 16384) | 0;
+	this.Width       = ResultWidth;
+	this.WidthOrigin = ResultWidth;
 	// Не меняем здесь WidthVisible, это значение для пробела высчитывается отдельно, и не должно меняться при пересчете
 };
 ParaSpace.prototype.Get_FontKoef = function()
@@ -520,7 +552,7 @@ ParaSpace.prototype.Get_FontKoef = function()
 	if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SCRIPT && this.Flags & PARATEXT_FLAGS_FONTKOEF_SMALLCAPS)
 		return smallcaps_and_script_koef;
 	else if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SCRIPT)
-		return vertalign_Koef_Size;
+		return AscCommon.vaKSize;
 	else if (this.Flags & PARATEXT_FLAGS_FONTKOEF_SMALLCAPS)
 		return smallcaps_Koef;
 	else
@@ -567,6 +599,16 @@ ParaSpace.prototype.Read_FromBinary = function(Reader)
 ParaSpace.prototype.CanStartAutoCorrect = function()
 {
 	return true;
+};
+ParaSpace.prototype.CheckCondensedWidth = function(isCondensedSpaces)
+{
+	// TODO: Коэффициент 3/4 получен опытным путем, возможно есть параметр в шрифте соответствующий, но
+	// для шрифтов, которые я просмотрел был именно такой коэффициент
+
+	if (isCondensedSpaces)
+		this.Width = this.WidthOrigin * 0.75;
+	else
+		this.Width = this.WidthOrigin;
 };
 
 
@@ -1181,38 +1223,103 @@ function ParaNumbering()
 	this.Page  = 0;
 
 	this.Internal = {
-		NumInfo   : undefined,
-		CalcValue : -1
+		FinalNumInfo    : undefined,
+		FinalCalcValue  : -1,
+		FinalNumId      : null,
+		FinalNumLvl     : -1,
+
+		SourceNumInfo   : undefined,
+		SourceCalcValue : -1,
+		SourceNumId     : null,
+		SourceNumLvl    : -1,
+		SourceWidth     : 0,
+
+		Reset : function()
+		{
+			this.FinalNumInfo    = undefined;
+			this.FinalCalcValue  = -1;
+			this.FinalNumId      = null;
+			this.FinalNumLvl     = -1;
+
+			this.SourceNumInfo   = undefined;
+			this.SourceCalcValue = -1;
+			this.SourceNumId     = null;
+			this.SourceNumLvl    = -1;
+			this.SourceWidth     = 0;
+		}
 	};
 }
 ParaNumbering.prototype = Object.create(CRunElementBase.prototype);
 ParaNumbering.prototype.constructor = ParaNumbering;
 
 ParaNumbering.prototype.Type = para_Numbering;
-ParaNumbering.prototype.Draw = function(X,Y,Context, Numbering, TextPr, NumPr, Theme)
+ParaNumbering.prototype.Draw = function(X, Y, oContext, oNumbering, oTextPr, oTheme)
 {
-	Numbering.Draw(NumPr.NumId, NumPr.Lvl, X, Y, Context, this.Internal.NumInfo, TextPr, Theme);
-};
-ParaNumbering.prototype.Measure = function (Context, Numbering, NumInfo, TextPr, NumPr, Theme)
-{
-	this.Internal.NumInfo   = NumInfo;
-	this.Internal.CalcValue = NumInfo && NumPr ? NumInfo[NumPr.Lvl] : -1;
+	var _X = X;
+	if (this.Internal.SourceNumInfo)
+	{
+		oNumbering.Draw(this.Internal.SourceNumId,this.Internal.SourceNumLvl, _X, Y, oContext, this.Internal.SourceNumInfo, oTextPr, oTheme);
+		_X += this.Internal.SourceWidth;
+	}
 
+	if (this.Internal.FinalNumInfo)
+	{
+		oNumbering.Draw(this.Internal.FinalNumId,this.Internal.FinalNumLvl, _X, Y, oContext, this.Internal.FinalNumInfo, oTextPr, oTheme);
+	}
+};
+ParaNumbering.prototype.Measure = function (oContext, oNumbering, oTextPr, oTheme, oFinalNumInfo, oFinalNumPr, oSourceNumInfo, oSourceNumPr)
+{
 	this.Width        = 0;
 	this.Height       = 0;
 	this.WidthVisible = 0;
 	this.WidthNum     = 0;
 	this.WidthSuff    = 0;
 
-	if (undefined === Numbering)
-		return {Width : this.Width, Height : this.Height, WidthVisible : this.WidthVisible};
+	this.Internal.Reset();
 
-	var Temp          = Numbering.Measure(NumPr.NumId, NumPr.Lvl, Context, NumInfo, TextPr, Theme);
-	this.Width        = Temp.Width;
-	this.WidthVisible = Temp.Width;
-	this.WidthNum     = Temp.Width;
+	if (!oNumbering)
+	{
+		return {
+			Width        : this.Width,
+			Height       : this.Height,
+			WidthVisible : this.WidthVisible
+		}
+	}
+
+	var nWidth = 0, nAscent = 0;
+	if (oFinalNumInfo && oFinalNumPr && undefined !== oFinalNumInfo[oFinalNumPr.Lvl])
+	{
+		var oTemp = oNumbering.Measure(oFinalNumPr.NumId, oFinalNumPr.Lvl, oContext, oFinalNumInfo, oTextPr, oTheme);
+
+		this.Internal.FinalNumInfo   = oFinalNumInfo;
+		this.Internal.FinalCalcValue = oFinalNumInfo[oFinalNumPr.Lvl];
+		this.Internal.FinalNumId     = oFinalNumPr.NumId;
+		this.Internal.FinalNumLvl    = oFinalNumPr.Lvl;
+
+		nWidth    = oTemp.Width;
+		nAscent   = oTemp.Ascent;
+	}
+
+	if (oSourceNumInfo && oSourceNumPr && undefined !== oSourceNumInfo[oSourceNumPr.Lvl])
+	{
+		var oTemp = oNumbering.Measure(oSourceNumPr.NumId, oSourceNumPr.Lvl, oContext, oSourceNumInfo, oTextPr, oTheme);
+
+		this.Internal.SourceNumInfo   = oSourceNumInfo;
+		this.Internal.SourceCalcValue = oSourceNumInfo[oSourceNumPr.Lvl];
+		this.Internal.SourceNumId     = oSourceNumPr.NumId;
+		this.Internal.SourceNumLvl    = oSourceNumPr.Lvl;
+		this.Internal.SourceWidth     = oTemp.Width;
+		nWidth += this.Internal.SourceWidth;
+
+		if (nAscent < oTemp.Ascent)
+			nAscent = oTemp.Ascent;
+	}
+
+	this.Width        = nWidth;
+	this.WidthVisible = nWidth;
+	this.WidthNum     = nWidth;
 	this.WidthSuff    = 0;
-	this.Height       = Temp.Ascent; // Это не вся высота, а только высота над BaseLine
+	this.Height       = nAscent; // Это не вся высота, а только высота над BaseLine
 };
 ParaNumbering.prototype.Check_Range = function(Range, Line)
 {
@@ -1243,7 +1350,31 @@ ParaNumbering.prototype.Read_FromBinary = function(Reader)
 };
 ParaNumbering.prototype.GetCalculatedValue = function()
 {
-	return this.Internal.CalcValue;
+	return this.Internal.FinalCalcValue;
+};
+/**
+ * Нужно ли отрисовывать исходную нумерацию
+ * @returns {boolean}
+ */
+ParaNumbering.prototype.HaveSourceNumbering = function()
+{
+	return !!this.Internal.SourceNumInfo;
+};
+/**
+ * Нужно ли отрисовывать финальную нумерацию
+ * @returns {boolean}
+ */
+ParaNumbering.prototype.HaveFinalNumbering = function()
+{
+	return !!this.Internal.FinalNumInfo;
+};
+/**
+ * Получаем ширину исходной нумерации
+ * @returns {number}
+ */
+ParaNumbering.prototype.GetSourceWidth = function()
+{
+	return this.Internal.SourceWidth;
 };
 
 // TODO: Реализовать табы по точке и с чертой.
@@ -1636,7 +1767,7 @@ ParaFootnoteReference.prototype.Draw = function(X, Y, Context, PDSE)
 
 	var FontKoef = 1;
 	if (TextPr.VertAlign !== AscCommon.vertalign_Baseline)
-		FontKoef = vertalign_Koef_Size;
+		FontKoef = AscCommon.vaKSize;
 
 	Context.SetFontSlot(fontslot_ASCII, FontKoef);
 
@@ -1668,7 +1799,13 @@ ParaFootnoteReference.prototype.Copy = function()
 {
 	var oFootnote = this.Footnote.Parent.CreateFootnote();
 	oFootnote.Copy2(this.Footnote);
-	return new ParaFootnoteReference(oFootnote);
+
+	var oRef = new ParaFootnoteReference(oFootnote);
+
+	oRef.Number    = this.Number;
+	oRef.NumFormat = this.NumFormat;
+
+	return oRef;
 };
 ParaFootnoteReference.prototype.Write_ToBinary = function(Writer)
 {
@@ -1699,7 +1836,7 @@ ParaFootnoteReference.prototype.Read_FromBinary = function(Reader)
 	if (false === Reader.GetBool())
 		this.CustomMark = Reader.GetString2();
 };
-ParaFootnoteReference.prototype.Get_Footnote = function()
+ParaFootnoteReference.prototype.GetFootnote = function()
 {
 	return this.Footnote;
 };
@@ -1752,7 +1889,7 @@ ParaFootnoteReference.prototype.private_Measure = function()
 
     var FontKoef = 1;
     if (TextPr.VertAlign !== AscCommon.vertalign_Baseline)
-        FontKoef = vertalign_Koef_Size;
+        FontKoef = AscCommon.vaKSize;
 
 	oMeasurer.SetTextPr(TextPr, Theme);
 	oMeasurer.SetFontSlot(fontslot_ASCII, FontKoef);
@@ -1832,7 +1969,7 @@ ParaFootnoteRef.prototype.Get_Type = function()
 };
 ParaFootnoteRef.prototype.Copy = function()
 {
-	return new ParaFootnoteRef(this.Get_Footnote());
+	return new ParaFootnoteRef(this.GetFootnote());
 };
 ParaFootnoteRef.prototype.UpdateNumber = function(oFootnote)
 {
@@ -2127,6 +2264,7 @@ function ParagraphContent_Read_FromBinary(Reader)
 		case para_PageCount             : Element = new ParaPageCount(); break;
 		case para_FieldChar             : Element = new ParaFieldChar(); break;
 		case para_InstrText             : Element = new ParaInstrText(); break;
+		case para_RevisionMove          : Element = new CRunRevisionMove(); break;
 	}
 
 	if (null != Element)
@@ -2143,5 +2281,6 @@ window['AscCommonWord'].ParaSpace     = ParaSpace;
 window['AscCommonWord'].ParaPageNum   = ParaPageNum;
 window['AscCommonWord'].ParaPageCount = ParaPageCount;
 
+window['AscCommonWord'].break_Line = break_Line;
 window['AscCommonWord'].break_Page = break_Page;
 window['AscCommonWord'].break_Column = break_Column;

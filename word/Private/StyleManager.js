@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -84,11 +84,12 @@ CDocument.prototype.Add_NewStyle = function(oStyle)
 {
     if (false === this.Document_Is_SelectionLocked(AscCommon.changestype_Document_Styles, {Type : AscCommon.changestype_2_AdditionalTypes, Types : [AscCommon.changestype_Paragraph_Properties]}))
     {
-        AscCommon.History.Create_NewPoint(AscDFH.historydescription_Document_AddNewStyle);
+        this.StartAction(AscDFH.historydescription_Document_AddNewStyle);
         var NewStyle = this.Styles.Create_StyleFromInterface(oStyle);
         this.SetParagraphStyle(NewStyle.Get_Name());
         this.Recalculate();
-        this.Document_UpdateInterfaceState();
+        this.UpdateInterface();
+        this.FinalizeAction();
     }
 };
 /**
@@ -103,10 +104,11 @@ CDocument.prototype.Remove_Style = function(sStyleName)
 
     if (false === this.Document_Is_SelectionLocked(AscCommon.changestype_Document_Styles))
     {
-        AscCommon.History.Create_NewPoint(AscDFH.historydescription_Document_RemoveStyle);
+        this.StartAction(AscDFH.historydescription_Document_RemoveStyle);
         this.Styles.Remove_StyleFromInterface(StyleId);
         this.Recalculate();
-        this.Document_UpdateInterfaceState();
+        this.UpdateInterface();
+        this.FinalizeAction();
     }
 };
 /**
@@ -116,10 +118,11 @@ CDocument.prototype.Remove_AllCustomStyles = function()
 {
     if (false === this.Document_Is_SelectionLocked(AscCommon.changestype_Document_Styles))
     {
-        AscCommon.History.Create_NewPoint(AscDFH.historydescription_Document_RemoveAllCustomStyles);
+        this.StartAction(AscDFH.historydescription_Document_RemoveAllCustomStyles);
         this.Styles.Remove_AllCustomStylesFromInterface();
         this.Recalculate();
-        this.Document_UpdateInterfaceState();
+        this.UpdateInterface();
+        this.FinalizeAction();
     }
 };
 /**
@@ -210,7 +213,7 @@ CStyles.prototype.Create_StyleFromInterface = function(oAscStyle, bCheckLink)
 		}
 
 		oStyle.Set_TextPr(NewStyleTextPr);
-		oStyle.Set_ParaPr(NewStyleParaPr);
+		oStyle.Set_ParaPr(NewStyleParaPr, true);
 
 		return oStyle;
 	}
@@ -223,7 +226,7 @@ CStyles.prototype.Create_StyleFromInterface = function(oAscStyle, bCheckLink)
 		oStyle.Set_Next(this.GetStyleIdByName(oAscStyle.get_Next()));
 		oStyle.Set_Type(oAscStyle.get_Type());
 		oStyle.Set_TextPr(oAscStyle.get_TextPr());
-		oStyle.Set_ParaPr(oAscStyle.get_ParaPr());
+		oStyle.Set_ParaPr(oAscStyle.get_ParaPr(), true);
 		oStyle.Set_Name(sStyleName);
 		oStyle.SetCustom(true);
 

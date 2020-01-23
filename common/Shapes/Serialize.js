@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -34,6 +34,7 @@
 
 (function(window, undefined){
 
+var prot;
 // Import
 var g_memory = AscFonts.g_memory;
 var DecodeBase64Char = AscFonts.DecodeBase64Char;
@@ -436,9 +437,30 @@ function BinaryPPTYLoader()
 
             pres.fromStream(s, this);
 
+            if(pres.attrShowSpecialPlsOnTitleSld !== null)
+            {
+                this.presentation.setShowSpecialPlsOnTitleSld(pres.attrShowSpecialPlsOnTitleSld);
+            }
+
+            if(pres.attrFirstSlideNum !== null)
+            {
+                this.presentation.setFirstSlideNum(pres.attrFirstSlideNum);
+            }
+
             this.presentation.defaultTextStyle = pres.defaultTextStyle;
-            this.presentation.Width = pres.SldSz.cx / c_dScalePPTXSizes;
-            this.presentation.Height = pres.SldSz.cy / c_dScalePPTXSizes;
+            if(pres.SldSz)
+            {
+                this.presentation.Width = pres.SldSz.cx / c_dScalePPTXSizes;
+                this.presentation.Height = pres.SldSz.cy / c_dScalePPTXSizes;
+            }
+            else
+            {
+                this.presentation.Width = 254;
+                this.presentation.Height = 190.5;
+                pres.SldSz = {};
+                pres.SldSz.cx = this.presentation.Width * c_dScalePPTXSizes;
+                pres.SldSz.cy = this.presentation.Height * c_dScalePPTXSizes;
+            }
         }
 
         if (!this.IsThemeLoader)
@@ -1785,8 +1807,11 @@ function BinaryPPTYLoader()
     {
         var ret = new AscFormat.CColorModifiers();
         var _mods = this.ReadColorModifiers();
-        for(var i = 0; i < _mods.length; ++i)
-            ret.addMod(_mods[i]);
+        if(_mods)
+        {
+            for(var i = 0; i < _mods.length; ++i)
+                ret.addMod(_mods[i]);
+        }
         return ret;
     };
 
@@ -2007,6 +2032,1069 @@ function BinaryPPTYLoader()
         return _path;
     }
 
+
+    this.ReadBlur = function()
+    {
+        var nRecStart, nRecLen, nRecEnd;
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        nRecStart = s.cur;
+        nRecLen = s.GetLong();
+        nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CBlur();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0:	oEffect.rad = s.GetULong(); break;
+                case 1:	oEffect.grow = s.GetBool(); break;
+            }
+        }
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadFillOverlay = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart, nRecLen, nRecEnd;
+        nRecStart = s.cur;
+        nRecLen = s.GetLong();
+        nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CFillOverlay();
+        s.Skip2(1); // start attributes
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            if (_at == 0)
+                oEffect.blend = s.GetUChar();
+            else break;
+        }
+
+        while (s.cur < nRecEnd)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffect.fill = this.ReadUniFill();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadGlow = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CGlow();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            if (_at == 0)
+                oEffect.rad = s.GetLong();
+            else break;
+        }
+        while (s.cur < nRecEnd)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffect.color = this.ReadUniColor();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadInnerShdw = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CInnerShdw();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0:	oEffect.dir = s.GetLong(); break;
+                case 1:	oEffect.dist = s.GetLong(); break;
+                case 2:	oEffect.blurRad = s.GetLong(); break;
+            }
+        }
+        while (s.cur < nRecEnd)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffect.color = this.ReadUniColor();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadOuterShdw = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.COuterShdw();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var  _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0: oEffect.algn = s.GetUChar(); break;
+                case 1:	oEffect.blurRad = s.GetLong(); break;
+                case 2:	oEffect.dir		= s.GetLong(); break;
+                case 3:	oEffect.dist	= s.GetLong(); break;
+                case 4:	oEffect.kx		= s.GetLong(); break;
+                case 5:	oEffect.ky		= s.GetLong(); break;
+                case 6:	oEffect.sx		= s.GetLong(); break;
+                case 7:	oEffect.sy		= s.GetLong(); break;
+                case 8:	oEffect.rotWithShape = s.GetBool(); break;
+            }
+        }
+        while (s.cur < nRecEnd)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffect.color = this.ReadUniColor();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadPrstShdw = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CPrstShdw();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0:	oEffect.dir		= s.GetLong(); break;
+                case 1:	oEffect.dist	= s.GetLong(); break;
+                case 2:	oEffect.prst = s.GetUChar(); break;
+            }
+
+        }
+        while (s.cur < nRecEnd)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffect.color = this.ReadUniColor();
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadReflection = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CReflection();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffect.algn = ( s.GetUChar());
+                }break;
+                case 1:	oEffect.blurRad = s.GetLong(); break;
+                case 2:	oEffect.stA		= s.GetLong(); break;
+                case 3:	oEffect.endA	= s.GetLong(); break;
+                case 4:	oEffect.stPos	= s.GetLong(); break;
+                case 5:	oEffect.endPos	= s.GetLong(); break;
+                case 6:	oEffect.dir		= s.GetLong(); break;
+                case 7:	oEffect.fadeDir	= s.GetLong(); break;
+                case 8:	oEffect.dist	= s.GetLong(); break;
+                case 9:	oEffect.kx		= s.GetLong(); break;
+                case 10:oEffect.ky		= s.GetLong(); break;
+                case 11:oEffect.sx		= s.GetLong(); break;
+                case 12:oEffect.sy		= s.GetLong(); break;
+                case 13:oEffect.rotWithShape = s.GetBool(); break;
+            }
+        }
+
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadSoftEdge = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffect = new AscFormat.CSoftEdge();
+        s.Skip2(1);
+
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            if (_at == 0) oEffect.rad = s.GetULong();
+            else break;
+        }
+
+        s.Seek2(nRecEnd);
+        return oEffect;
+    };
+
+    this.ReadEffect = function()
+    {
+
+        var s = this.stream;
+        var pos = s.cur;
+        var nUniEffectLength = s.GetLong(); // len
+        if(nUniEffectLength === 0)
+        {
+            return null;
+        }
+        var  nEffectType = s.GetUChar();
+        s.Seek2(pos);
+        var nRecStart, nRecLen, nRecEnd;
+        var oEffect = null;
+        switch(nEffectType)
+        {
+            case 0:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_NONE			=
+            }
+            case 1:
+            {
+                oEffect = this.ReadOuterShdw();
+                break;//var  EFFECT_TYPE_OUTERSHDW		=
+            }
+            case 2:
+            {
+                oEffect = this.ReadGlow();
+                break;//var  EFFECT_TYPE_GLOW			=
+            }
+            case 3:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CDuotone();
+                var count = s.GetULong();
+                for (var i = 0; i < count; ++i)
+                {
+                    s.Skip2(1); // type
+
+                    var oUniColor = this.ReadUniColor();
+                    if(oUniColor.color)
+                    {
+                        oEffect.colors.push(oUniColor);
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_DUOTONE		=
+            }
+            case 4:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CXfrmEffect();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:	oEffect.kx	= s.GetLong(); break;
+                        case 1: oEffect.ky	= s.GetLong(); break;
+                        case 2: oEffect.sx	= s.GetLong(); break;
+                        case 3: oEffect.sy	= s.GetLong(); break;
+                        case 4: oEffect.tx	= s.GetULong(); break;
+                        case 5: oEffect.ty	= s.GetULong(); break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_XFRM			=
+            }
+            case 5:
+            {
+                oEffect = this.ReadBlur();
+                break;//var  EFFECT_TYPE_BLUR			=
+            }
+            case 6:
+            {
+                oEffect = this.ReadPrstShdw();
+                break;//var  EFFECT_TYPE_PRSTSHDW		=
+            }
+            case 7:
+            {
+                oEffect = this.ReadInnerShdw();
+                break;//var  EFFECT_TYPE_INNERSHDW		=
+            }
+            case 8:
+            {
+                oEffect = this.ReadReflection();
+                break;//var  EFFECT_TYPE_REFLECTION		=
+            }
+            case 9:
+            {
+                oEffect = this.ReadSoftEdge();
+                break;//var  EFFECT_TYPE_SOFTEDGE		=
+            }
+            case 10:
+            {
+                oEffect = this.ReadFillOverlay();
+                break;//var  EFFECT_TYPE_FILLOVERLAY	=
+            }
+            case 11:
+            {
+                s.GetLong();
+                s.GetUChar();
+
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaCeiling();
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ALPHACEILING	=
+            }
+            case 12:
+            {
+                s.GetLong();
+                s.GetUChar();
+
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaFloor();
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ALPHAFLOOR		=
+            }
+            case 13:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CTintEffect();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:	oEffect.amt = s.GetLong(); break;
+                        case 1:	oEffect.hue = s.GetLong(); break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_TINTEFFECT		=
+            }
+            case 14:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CRelOff();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:	oEffect.tx	= s.GetLong(); break;
+                        case 1:	oEffect.ty	= s.GetLong(); break;
+                    }
+
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_RELOFF			=
+            }
+            case 15:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CLumEffect();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:	oEffect.bright = s.GetLong(); break;
+                        case 1:	oEffect.contrast = s.GetLong(); break;
+                    }
+                }
+
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_LUM			=
+            }
+            case 16:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CHslEffect();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:
+                            oEffect.hue = s.GetLong(); break;
+                        case 1:
+                            oEffect.lum = s.GetLong(); break;
+                        case 2:
+                            oEffect.sat = s.GetLong(); break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_HSL			=
+            }
+            case 17:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CGrayscl();
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_GRAYSCL		=
+            }
+            case 18:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CEffectElement();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.ref = s.GetString2();
+                    else break;
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ELEMENT		=
+            }
+            case 19:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaRepl();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.a = s.GetLong();
+                    else break;
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ALPHAREPL		=
+            }
+            case 20:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaOutset();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.rad = s.GetULong();
+                    else break;
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ALPHAOUTSET	=
+            }
+            case 21:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaModFix();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.amt = s.GetLong();
+                    else break;
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ALPHAMODFIX	=
+            }
+            case 22:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaBiLevel();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.thresh = s.GetLong();
+                    else break;
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_ALPHABILEVEL	=
+            }
+            case 23:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CBiLevel();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.thresh = s.GetLong();
+                    else break;
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_BILEVEL		=
+            }
+            case 24:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CEffectContainer();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:
+                            oEffect.name = s.GetString2(); break;
+                        case 1:
+                        {
+                            oEffect.type = (s.GetUChar());
+                        }break;
+                    }
+                }
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            var count_effects2 = s.GetULong();
+                            for (var _eff2 = 0; _eff2 < count_effects2; ++_eff2)
+                            {
+                                s.Skip2(1); // type
+                                var eff2 = this.ReadEffect();
+                                if(!eff2)
+                                {
+                                    oEffect.effectList.push(eff2);
+                                }
+                            }
+                        }break;
+                        default:
+                            break;
+                    }
+                }
+
+
+                s.Seek2(nRecEnd);
+                break;//var  EFFECT_TYPE_DAG			=
+            }
+            case 25:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CFillEffect();
+                s.Skip2(1); // start attributes
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+                }
+
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            oEffect.fill = this.ReadUniFill();
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var EFFECT_TYPE_FILL			=
+            }
+            case 26:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CClrRepl();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+                }
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            oEffect.color = this.ReadUniColor();
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var EFFECT_TYPE_CLRREPL		=
+            }
+            case 27:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CClrChange();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 0:
+                            oEffect.useA = s.GetBool(); break;
+                    }
+                }
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            oEffect.clrFrom = this.ReadUniColor();
+                        }break;
+                        case 1:
+                        {
+                            oEffect.clrTo = this.ReadUniColor();
+                        }break;
+                        default:
+                            break;
+                    }
+                }
+
+
+                s.Seek2(nRecEnd);
+                break;//var EFFECT_TYPE_CLRCHANGE		=
+            }
+            case 28:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaInv();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+                }
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            oEffect.color = this.ReadUniColor();
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var EFFECT_TYPE_ALPHAINV		=
+            }
+            case 29:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CAlphaMod();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+                }
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            oEffect.cont = this.ReadEffectDag();
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var EFFECT_TYPE_ALPHAMOD		=
+            }
+            case 30:
+            {
+                s.GetLong();
+                s.GetUChar();
+                nRecStart = s.cur;
+                nRecLen = s.GetLong();
+                nRecEnd = nRecStart + nRecLen + 4;
+                oEffect = new AscFormat.CBlend();
+                s.Skip2(1);
+
+                while (true)
+                {
+                    var _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    if (_at == 0)
+                        oEffect.blend = (s.GetUChar());
+                    else break;
+                }
+                while (s.cur < nRecEnd)
+                {
+                    var _at = s.GetUChar();
+                    switch (_at)
+                    {
+                        case 0:
+                        {
+                            oEffect.cont = this.ReadEffectDag();
+                            break;
+                        }
+                        default:
+                            break;
+                    }
+                }
+
+                s.Seek2(nRecEnd);
+                break;//var EFFECT_TYPE_BLEND			=
+            }
+            default:
+            {
+                s.SkipRecord();
+                break;//var
+            }
+        }
+
+        return oEffect;
+    };
+
+    this.ReadEffectDag = function ()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var _start_pos = s.cur;
+        var _end_rec = _start_pos + s.GetLong() + 4;
+        s.Skip(1);
+
+        var ret = new AscFormat.CEffectContainer();
+        while (true)
+        {
+            var _at = s.GetUChar();
+            if (_at == g_nodeAttributeEnd)
+                break;
+
+            switch (_at)
+            {
+                case 0:
+                {
+                    ret.name = s.GetString2(); break;
+                }
+                case 1:
+                {
+                    ret.type = (s.GetUChar()); break;
+                }
+            }
+        }
+        while (s.cur < _end_rec)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    var count_effects = s.GetULong();
+                    for (var _eff = 0; _eff < count_effects; ++_eff)
+                    {
+                        s.Skip2(1); // type
+                        var effect = this.ReadEffect();
+                        if(effect)
+                        {
+                            ret.effectList.push(effect);
+                        }
+                    }
+                }break;
+                default:
+                    break;
+            }
+        }
+
+        s.Seek(_end_rec);
+        return ret;
+    };
+
+    
     this.ReadUniFill = function(oSpPr, oImageShape, oLn)
     {
         var s = this.stream;
@@ -2092,43 +3180,26 @@ function BinaryPPTYLoader()
                                         }
                                         case 2:
                                         {
-                                            s.Skip2(4);
-                                            var count_effects = s.GetLong();
+                                            var len2 = s.GetLong();
+
+                                            var  _end_rec_effect = s.cur + len2;
+
+                                            var count_effects = s.GetULong();
                                             for (var _eff = 0; _eff < count_effects; ++_eff)
                                             {
+
                                                 s.Skip2(1); // type
-                                                var __rec_len = s.GetLong();
-                                                if (0 == __rec_len)
-                                                    continue;
-
-                                                var recE = s.GetUChar();
-
-                                                if (recE == 21)
+                                                var oEffect = this.ReadEffect();
+                                                if(oEffect)
                                                 {
-                                                    // alpha!!!
-                                                    var _e22 = s.cur + s.GetLong() + 4;
-
-                                                    s.Skip2(1); // startattr
-
-                                                    while (true)
+                                                    uni_fill.fill.Effects.push(oEffect);
+                                                    if(oEffect instanceof AscFormat.CAlphaModFix)
                                                     {
-                                                        var _at222 = s.GetUChar();
-                                                        if (g_nodeAttributeEnd == _at222)
-                                                            break;
-
-                                                        if (_at222 == 0)
-                                                        {
-                                                            uni_fill.setTransparent(255 * s.GetLong() / 100000);
-                                                        }
+                                                        uni_fill.setTransparent(255 * oEffect.amt / 100000);
                                                     }
-
-                                                    s.Seek2(_e22);
-                                                }
-                                                else
-                                                {
-                                                    s.SkipRecord();
                                                 }
                                             }
+                                            s.Seek2(_end_rec_effect);
                                             break;
                                         }
                                         case 3:
@@ -2141,7 +3212,17 @@ function BinaryPPTYLoader()
 												if(sReadPathNew){
 													sReadPath = sReadPathNew;
 												}
-											}
+                                            }
+                                            if(this.IsUseFullUrl) {
+                                                if(window["native"] && window["native"]["CopyTmpToMedia"]){
+                                                    if(!(window.documentInfo && window.documentInfo["iscoauthoring"])){
+                                                        var sMedia = window["native"]["CopyTmpToMedia"](sReadPath);
+                                                        if(typeof sMedia === "string" && sMedia.length > 0){
+                                                            sReadPath = sMedia;
+                                                        }
+                                                    }
+                                                }
+                                            }
                                             uni_fill.fill.setRasterImageId(sReadPath);
 
                                             // TEST version ---------------
@@ -2903,7 +3984,7 @@ function BinaryPPTYLoader()
                 }
                 case 5:
                 {
-                    master.hf = this.ReadHF();
+                    master.setHF(this.ReadHF());
                     break;
                 }
                 case 6:
@@ -3050,7 +4131,7 @@ function BinaryPPTYLoader()
                 }
                 case 4:
                 {
-                    layout.hf = this.ReadHF();
+                    layout.setHF(this.ReadHF());
                     break;
                 }
                 default:
@@ -3209,6 +4290,39 @@ function BinaryPPTYLoader()
                                     break;
                                 default:
                                     break;
+                            }
+                        }
+
+                        while (s.cur < _end_rec3)
+                        {
+                            var _rec3 = s.GetUChar();
+                            switch (_rec3)
+                            {
+                                case 0:
+                                {
+                                    var _end_rec4 = s.cur + s.GetLong() + 4;
+                                    s.Skip2(1); // start attributes
+                                    while (true)
+                                    {
+                                        var _at = s.GetUChar();
+                                        if (_at == g_nodeAttributeEnd)
+                                            break;
+
+                                        switch (_at)
+                                        {
+                                            case 9: { _comment.timeZoneBias = s.GetLong(); break; }
+                                            default:
+                                                return;
+                                        }
+                                    }
+                                    s.Seek2(_end_rec4);
+                                    break;
+                                }
+                                default:
+                                {
+                                    s.SkipRecord();
+                                    break;
+                                }
                             }
                         }
 
@@ -3939,7 +5053,7 @@ function BinaryPPTYLoader()
                     this.ReadThemeElements(themeElements);
                     theme.setFontScheme(themeElements.fontScheme);
                     theme.setFormatScheme(themeElements.fmtScheme);
-                    theme.changeColorScheme(themeElements.clrScheme);
+                    theme.setColorScheme(themeElements.clrScheme);
 
                     break;
                 }
@@ -4288,6 +5402,96 @@ function BinaryPPTYLoader()
         return def;
     }
 
+    this.ReadEffectLst = function()
+    {
+        var s = this.stream;
+        s.GetULong();
+        s.GetUChar();
+        var nRecStart = s.cur;
+        var nRecLen = s.GetLong();
+        var nRecEnd = nRecStart + nRecLen + 4;
+        var oEffectLst = new AscFormat.CEffectLst();
+
+        while (s.cur < nRecEnd)
+        {
+            var _at = s.GetUChar();
+            switch (_at)
+            {
+                case 0:
+                {
+                    oEffectLst.blur = this.ReadBlur();
+                    break;
+                }
+                case 1:
+                {
+                    oEffectLst.fillOverlay = this.ReadFillOverlay();
+                    break;
+                }
+                case 2:
+                {
+                    oEffectLst.glow = this.ReadGlow();
+                    break;
+                }
+                case 3:
+                {
+                    oEffectLst.innerShdw = this.ReadInnerShdw();
+                    break;
+                }
+                case 4:
+                {
+                    oEffectLst.outerShdw = this.ReadOuterShdw();
+                    break;
+                }
+                case 5:
+                {
+                    oEffectLst.prstShdw = this.ReadPrstShdw();
+                    break;
+                }
+                case 6:
+                {
+                    oEffectLst.reflection = this.ReadReflection();
+                    break;
+                }
+                case 7:
+                {
+                    oEffectLst.softEdge = this.ReadSoftEdge();
+                    break;
+                }
+                default:
+                {
+                    s.SkipRecord();
+                    break;
+                }
+            }
+        }
+        s.Seek2(nRecEnd);
+        return oEffectLst;
+    };
+
+    this.ReadEffectProperties = function()
+    {
+        var s = this.stream;
+        var pos = s.cur;
+        var nLength = s.GetLong();
+        if(nLength === 0)
+        {
+            return null;
+        }
+        var type = s.GetUChar();
+        s.Seek2(pos);
+        var oEffectProperties = new AscFormat.CEffectProperties();
+        if(type === 1)
+        {
+            oEffectProperties.EffectLst = this.ReadEffectLst();
+        }
+        else
+        {
+
+            oEffectProperties.EffectDag = this.ReadEffectDag();
+        }
+        return oEffectProperties;
+    };
+
     this.ReadSpPr = function(spPr)
     {
         var s = this.stream;
@@ -4339,8 +5543,7 @@ function BinaryPPTYLoader()
                 }
                 case 4:
                 {
-                    var _len = s.GetULong();
-                    s.Skip2(_len);
+                    spPr.setEffectPr(this.ReadEffectProperties());
                     break;
                 }
                 case 5:
@@ -4721,23 +5924,29 @@ function BinaryPPTYLoader()
                 {
                     s.GetLong();//length
                     oleType = s.GetUChar();
+                    ole.setOleType(oleType);
                     break;
                 }
                 case 2:
                 {
 
+                    var binary_length;
                     switch(oleType)
                     {
                         case 1:
                         {
                             ole.setObjectFile("maskFile.docx");
-                            s.SkipRecord();
+                            binary_length = s.GetULong();
+                            ole.setBinaryData(s.data.slice(s.cur, s.cur + binary_length));
+                            s.Seek2(s.cur + binary_length);
                             break;
                         }
                         case 2:
                         {
                             ole.setObjectFile("maskFile.xlsx");
-                            s.SkipRecord();
+                            binary_length = s.GetULong();
+                            ole.setBinaryData(s.data.slice(s.cur, s.cur + binary_length));
+                            s.Seek2(s.cur + binary_length);
                             break;
                         }
                         case 4:
@@ -5435,11 +6644,17 @@ function BinaryPPTYLoader()
         }
     };
 
-    this.ReadGroupShape = function()
+    this.ReadGroupShape = function(type)
     {
         var s = this.stream;
 
-        var shape = new AscFormat.CGroupShape();
+        var shape;
+        if(type === 9){
+            shape = new AscFormat.CLockedCanvas();
+        }
+        else {
+            shape = new AscFormat.CGroupShape();
+        }
         shape.setBDeleted(false);
         this.TempGroupObject = shape;
 
@@ -5734,14 +6949,14 @@ function BinaryPPTYLoader()
                 {
                     if(isOle) {
                         this.ReadOleInfo(pic);
-                        if(pic.m_sObjectFile === "maskFile.docx"
-                            ||  pic.m_sObjectFile === "maskFile.xlsx"){
-                            var oParent = pic.parent;
-                            pic = AscFormat.CImageShape.prototype.copy.call(pic);
-                            if(oParent){
-                                pic.setParent(oParent);
-                            }
-                        }
+                        // if(pic.m_sObjectFile === "maskFile.docx"
+                        //     ||  pic.m_sObjectFile === "maskFile.xlsx"){
+                        //     var oParent = pic.parent;
+                        //     pic = AscFormat.CImageShape.prototype.copy.call(pic);
+                        //     if(oParent){
+                        //         pic.setParent(oParent);
+                        //     }
+                        // }
                     } else {
                         s.SkipRecord();
                     }
@@ -5792,7 +7007,7 @@ function BinaryPPTYLoader()
 
         if(type === 7 || type === 8){//video or audio
             if(typeof sMaskFileName === "string" && sMaskFileName.length > 0 &&
-                pic.nvPicPr && pic.nvPicPr.nvPr && pic.nvPicPr.nvPr.unimedia){
+                pic.nvPicPr && pic.nvPicPr.nvPr /*&& pic.nvPicPr.nvPr.unimedia*/){
                 var oUniMedia = new AscFormat.UniMedia();
                 oUniMedia.type = type;
                 oUniMedia.media = sMaskFileName;
@@ -6520,7 +7735,7 @@ function BinaryPPTYLoader()
             {
                 case 0:
                 {
-                    cNvPr.id = s.GetLong();
+                    cNvPr.setId(s.GetLong());
                     if(this.TempMainObject && cNvPr.id > this.TempMainObject.maxId)
                     {
                         this.TempMainObject.maxId = cNvPr.id;
@@ -6529,22 +7744,22 @@ function BinaryPPTYLoader()
                 }
                 case 1:
                 {
-                    cNvPr.name = s.GetString2();
+                    cNvPr.setName(s.GetString2());
                     break;
                 }
                 case 2:
                 {
-                    cNvPr.isHidden = (1 == s.GetUChar()) ? true : false;
+                    cNvPr.setIsHidden((1 == s.GetUChar()) ? true : false);
                     break;
                 }
                 case 3:
                 {
-                    cNvPr.title = s.GetString2();
+                    cNvPr.setTitle(s.GetString2());
                     break;
                 }
                 case 4:
                 {
-                    cNvPr.descr = s.GetString2();
+                    cNvPr.setDescr(s.GetString2());
                     break;
                 }
                 default:{
@@ -6631,6 +7846,10 @@ function BinaryPPTYLoader()
             }
         }
 
+        if(cols.length === 0)
+        {
+            cols.push(_xfrm.extX);
+        }
         var _table = new CTable(this.presentation.DrawingDocument, _graphic_frame, true, rows, cols.length, cols, true);
         _table.Reset(0, 0, _xfrm.extX, 100000, 0, 0, 1);
         if (null != props)
@@ -6931,7 +8150,7 @@ function BinaryPPTYLoader()
                         case 5: props.TextDirection = Asc.c_oAscCellTextDirection.BTLR; break;
                         case 6: props.TextDirection = Asc.c_oAscCellTextDirection.TBRL; break;
                         default:
-                            props.TextDirection = LRTB;
+                            props.TextDirection = Asc.c_oAscCellTextDirection.LRTB;
                             break;
                     }
                     break;
@@ -7503,6 +8722,39 @@ function BinaryPPTYLoader()
                 case 8:
                 {
                     s.SkipRecord();
+                    break;
+                }
+                case 12:
+                {
+                    //highlight
+                    var end_rec__ = s.cur + s.GetULong() + 4;
+
+                    s.Skip2(1); // start attributes
+                    var  at__;
+                    while (true)
+                    {
+                        at__ = s.GetUChar();
+                        if (at__ === g_nodeAttributeEnd)
+                            break;
+                    }
+                    while (s.cur < end_rec__)
+                    {
+                        at__ = s.GetUChar();
+                        switch (at__)
+                        {
+                            case 0:
+                            {
+                                rPr.HighlightColor = this.ReadUniColor();
+                                break;
+                            }
+                            default:
+                            {
+                                break;
+                            }
+                        }
+                    }
+
+                    s.Seek2(end_rec__);
                     break;
                 }
                 default:
@@ -8366,49 +9618,12 @@ function BinaryPPTYLoader()
                     {
                         txbody.content.Internal_Content_RemoveAll();
                     }
-                    var _last_field_type = false;
                     for (var i = 0; i < _c; i++)
                     {
                         s.Skip2(1); // type
                         var _paragraph = this.ReadParagraph(txbody.content);
                         _paragraph.Correct_Content();
                         txbody.content.Internal_Content_Add(txbody.content.Content.length, _paragraph);
-                        if(_paragraph.f_type != undefined || _paragraph.f_text != undefined || _paragraph.f_id != undefined)
-                        {
-                            _last_field_type = true;
-                        }
-                    }
-                    if(shape && (this.TempMainObject && typeof Slide !== "undefined" && this.TempMainObject instanceof  Slide && shape.isPlaceholder && shape.isPlaceholder() && (shape.getPlaceholderType() === AscFormat.phType_sldNum || shape.getPlaceholderType() === AscFormat.phType_dt)) && _last_field_type)
-                    {
-                        var str_field = txbody.getFieldText(_last_field_type, this.TempMainObject, (this.presentation && this.presentation.pres && AscFormat.isRealNumber(this.presentation.pres.attrFirstSlideNum)) ? this.presentation.pres.attrFirstSlideNum : 1);
-                        if(str_field.length > 0)
-                        {
-                            txbody.content.Internal_Content_RemoveAll();
-                            txbody.content.Internal_Content_Add(txbody.content.Content.length,  new Paragraph(txbody.content.DrawingDocument, txbody.content, true));
-                            AscFormat.AddToContentFromString(txbody.content, str_field);
-
-                            if(_paragraph.f_runPr || _paragraph.f_paraPr)
-                            {
-                                txbody.content.Set_ApplyToAll(true);
-                                if(_paragraph.f_runPr)
-                                {
-                                    var _value_text_pr = new CTextPr();
-                                    if(_paragraph.f_runPr.Unifill && !_paragraph.f_runPr.Unifill.fill)
-                                    {
-                                        _paragraph.f_runPr.Unifill = undefined;
-                                    }
-                                    _value_text_pr.Set_FromObject(_paragraph.f_runPr);
-                                    txbody.content.AddToParagraph( new ParaTextPr(_value_text_pr), false );
-                                    delete _paragraph.f_runPr;
-                                }
-                                if(_paragraph.f_paraPr)
-                                {
-                                    txbody.content.Content[0].Set_Pr(_paragraph.f_paraPr);
-                                    delete _paragraph.f_paraPr;
-                                }
-                                txbody.content.Set_ApplyToAll(false);
-                            }
-                        }
 
                     }
                     break;
@@ -8471,28 +9686,16 @@ function BinaryPPTYLoader()
                         txbody.content.Internal_Content_RemoveAll();
                     }
 
-                    var _last_field_type = false;
                     for (var i = 0; i < _c; i++)
                     {
                         s.Skip2(1); // type
                         var _paragraph = this.ReadParagraph(txbody.content);
                         _paragraph.Set_Parent(txbody.content);
                         txbody.content.Internal_Content_Add(txbody.content.Content.length, _paragraph);
-                        if(_paragraph.f_type != undefined || _paragraph.f_text != undefined || _paragraph.f_id != undefined)
-                        {
-                            _last_field_type = true;
-                        }
+
                     }
 
-                    if(_last_field_type)
-                    {
-                       // var str_field = txbody.getFieldText(_last_field_type);
-                       // if(str_field.length > 0)
-                       // {
-                       //     txbody.content.Internal_Content_RemoveAll();
-                       //     AddToContentFromString(txbody.content, str_field);
-                       // }
-                    }
+
                     break;
                 }
                 default:
@@ -8755,12 +9958,31 @@ function BinaryPPTYLoader()
                                     }
                                 }
 
-                                par.f_id = f_id;
-                                par.f_type = f_type;
-                                par.f_text = f_text;
-                                par.f_runPr = _rPr;
-                                par.f_paraPr = _pPr;
+                                var Fld = new AscCommonWord.CPresentationField(par);
+                                if(f_id)
+                                {
+                                    Fld.SetGuid(f_id);
+                                }
+                                if(f_type)
+                                {
+                                    Fld.SetFieldType(f_type);
+                                }
+                                if(f_text)
+                                {
+                                    Fld.AddText(f_text);
+                                }
+                                if(_rPr)
+                                {
+                                    Fld.SetPr(_rPr);
+                                }
+                                if(_pPr)
+                                {
+                                    Fld.SetPPr(_pPr);
+                                }
 
+                                par.Internal_Content_Add(EndPos++, new ParaRun(par, false));
+                                par.Internal_Content_Add(EndPos++, Fld);
+                                par.Internal_Content_Add(EndPos++, new ParaRun(par, false));
                                 s.Seek2(_end);
                                 break;
                             }
@@ -8893,86 +10115,561 @@ function CApp()
     this.HyperlinksChanged = null;
     this.AppVersion = null;
 
-    this.fromStream = function(s)
-    {
-        var _type = s.GetUChar();
-        var _len = s.GetULong();
-
-        // attributes
-        var _sa = s.GetUChar();
-
-        while (true)
-        {
-            var _at = s.GetUChar();
-
-            if (_at == g_nodeAttributeEnd)
-                break;
-
-            switch (_at)
-            {
-                case 0: { this.Template = s.GetString2(); break; }
-                case 1: { this.Application = s.GetString2(); break; }
-                case 2: { this.PresentationFormat = s.GetString2(); break; }
-                case 3: { this.Company = s.GetString2(); break; }
-                case 4: { this.AppVersion = s.GetString2(); break; }
-
-                case 5: { this.TotalTime = s.GetLong(); break; }
-                case 6: { this.Words = s.GetLong(); break; }
-                case 7: { this.Paragraphs = s.GetLong(); break; }
-                case 8: { this.Slides = s.GetLong(); break; }
-                case 9: { this.Notes = s.GetLong(); break; }
-                case 10: { this.HiddenSlides = s.GetLong(); break; }
-                case 11: { this.MMClips = s.GetLong(); break; }
-
-                case 12: { this.ScaleCrop = s.GetBool(); break; }
-                case 13: { this.LinksUpToDate = s.GetBool(); break; }
-                case 14: { this.SharedDoc = s.GetBool(); break; }
-                case 15: { this.HyperlinksChanged = s.GetBool(); break; }
-                default:
-                    return;
-            }
-        }
-    }
+    this.Characters = null;
+    this.CharactersWithSpaces = null;
+    this.DocSecurity = null;
+    this.HyperlinkBase = null;
+    this.Lines = null;
+    this.Manager = null;
+    this.Pages = null;
 }
-
-function CCore()
+CApp.prototype.fromStream = function(s)
 {
-    this.title = null;
-    this.creator = null;
-    this.lastModifiedBy = null;
-    this.revision = null;
-    this.created = null;
-    this.modified = null;
+    var _type = s.GetUChar();
+    var _len = s.GetULong();
+    var _start_pos = s.cur;
+    var _end_pos = _len + _start_pos;
+    var _at;
 
-    this.fromStream = function(s)
+    // attributes
+    var _sa = s.GetUChar();
+
+    while (true)
     {
-        var _type = s.GetUChar();
-        var _len = s.GetULong();
+        _at = s.GetUChar();
 
-        // attributes
-        var _sa = s.GetUChar();
+        if (_at == g_nodeAttributeEnd)
+            break;
 
-        while (true)
+        switch (_at)
         {
-            var _at = s.GetUChar();
+            case 0: { this.Template = s.GetString2(); break; }
+            case 1: { this.Application = s.GetString2(); break; }
+            case 2: { this.PresentationFormat = s.GetString2(); break; }
+            case 3: { this.Company = s.GetString2(); break; }
+            case 4: { this.AppVersion = s.GetString2(); break; }
 
-            if (_at == g_nodeAttributeEnd)
-                break;
+            case 5: { this.TotalTime = s.GetLong(); break; }
+            case 6: { this.Words = s.GetLong(); break; }
+            case 7: { this.Paragraphs = s.GetLong(); break; }
+            case 8: { this.Slides = s.GetLong(); break; }
+            case 9: { this.Notes = s.GetLong(); break; }
+            case 10: { this.HiddenSlides = s.GetLong(); break; }
+            case 11: { this.MMClips = s.GetLong(); break; }
 
-            switch (_at)
+            case 12: { this.ScaleCrop = s.GetBool(); break; }
+            case 13: { this.LinksUpToDate = s.GetBool(); break; }
+            case 14: { this.SharedDoc = s.GetBool(); break; }
+            case 15: { this.HyperlinksChanged = s.GetBool(); break; }
+            default:
+                return;
+        }
+    }
+    while (true)
+    {
+        if (s.cur >= _end_pos)
+            break;
+
+        _type = s.GetUChar();
+        switch (_type)
+        {
+            case 0:
             {
-                case 0: { this.title = s.GetString2(); break; }
-                case 1: { this.creator = s.GetString2(); break; }
-                case 2: { this.lastModifiedBy = s.GetString2(); break; }
-                case 3: { this.revision = s.GetString2(); break; }
-                case 4: { this.created = s.GetString2(); break; }
-                case 5: { this.modified = s.GetString2(); break; }
-                default:
-                    return;
+                var _end_rec2 = s.cur + s.GetLong() + 4;
+                s.Skip2(1); // start attributes
+                while (true)
+                {
+                    _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 16: { this.Characters = s.GetLong(); break; }
+                        case 17: { this.CharactersWithSpaces = s.GetLong(); break; }
+                        case 18: { this.DocSecurity = s.GetLong(); break; }
+                        case 19: { this.HyperlinkBase = s.GetString2(); break; }
+                        case 20: { this.Lines = s.GetLong(); break; }
+                        case 21: { this.Manager = s.GetString2(); break; }
+                        case 22: { this.Pages = s.GetLong(); break; }
+                        default:
+                            return;
+                    }
+                }
+                s.Seek2(_end_rec2);
+                break;
+            }
+            default:
+            {
+                s.SkipRecord();
+                break;
             }
         }
     }
+    s.Seek2(_end_pos);
+};
+CApp.prototype.toStream = function(s) {
+    s.StartRecord(AscCommon.c_oMainTables.App);
+
+    s.WriteUChar(AscCommon.g_nodeAttributeStart);
+
+    s._WriteString2(0, this.Template);
+    // just in case
+    // s._WriteString2(1, this.Application);
+    s._WriteString2(2, this.PresentationFormat);
+    s._WriteString2(3, this.Company);
+    // just in case
+    // s._WriteString2(4, this.AppVersion);
+
+    //we don't count these stats
+    // s._WriteInt2(5, this.TotalTime);
+    // s._WriteInt2(6, this.Words);
+    // s._WriteInt2(7, this.Paragraphs);
+    // s._WriteInt2(8, this.Slides);
+    // s._WriteInt2(9, this.Notes);
+    // s._WriteInt2(10, this.HiddenSlides);
+    // s._WriteInt2(11, this.MMClips);
+
+    s._WriteBool2(12, this.ScaleCrop);
+    s._WriteBool2(13, this.LinksUpToDate);
+    s._WriteBool2(14, this.SharedDoc);
+    s._WriteBool2(15, this.HyperlinksChanged);
+
+    s.WriteUChar(g_nodeAttributeEnd);
+
+    s.StartRecord(0);
+
+    s.WriteUChar(AscCommon.g_nodeAttributeStart);
+
+    // s._WriteInt2(16, this.Characters);
+    // s._WriteInt2(17, this.CharactersWithSpaces);
+    s._WriteInt2(18, this.DocSecurity);
+    s._WriteString2(19, this.HyperlinkBase);
+    // s._WriteInt2(20, this.Lines);
+    s._WriteString2(21, this.Manager);
+    // s._WriteInt2(22, this.Pages);
+
+    s.WriteUChar(g_nodeAttributeEnd);
+
+    s.EndRecord();
+
+    s.EndRecord();
+};
+CApp.prototype.asc_getTemplate = function(){return this.Template;};
+CApp.prototype.asc_getTotalTime = function(){return this.TotalTime;};
+CApp.prototype.asc_getWords = function(){return this.Words;};
+CApp.prototype.asc_getApplication = function(){return this.Application;};
+CApp.prototype.asc_getPresentationFormat = function(){return this.PresentationFormat;};
+CApp.prototype.asc_getParagraphs = function(){return this.Paragraphs;};
+CApp.prototype.asc_getSlides = function(){return this.Slides;};
+CApp.prototype.asc_getNotes = function(){return this.Notes;};
+CApp.prototype.asc_getHiddenSlides = function(){return this.HiddenSlides;};
+CApp.prototype.asc_getMMClips = function(){return this.MMClips;};
+CApp.prototype.asc_getScaleCrop = function(){return this.ScaleCrop;};
+CApp.prototype.asc_getCompany = function(){return this.Company;};
+CApp.prototype.asc_getLinksUpToDate = function(){return this.LinksUpToDate;};
+CApp.prototype.asc_getSharedDoc = function(){return this.SharedDoc;};
+CApp.prototype.asc_getHyperlinksChanged = function(){return this.HyperlinksChanged;};
+CApp.prototype.asc_getAppVersion = function(){return this.AppVersion;};
+CApp.prototype.asc_getCharacters = function(){return this.Characters;};
+CApp.prototype.asc_getCharactersWithSpaces = function(){return this.CharactersWithSpaces;};
+CApp.prototype.asc_getDocSecurity = function(){return this.DocSecurity;};
+CApp.prototype.asc_getHyperlinkBase = function(){return this.HyperlinkBase;};
+CApp.prototype.asc_getLines = function(){return this.Lines;};
+CApp.prototype.asc_getManager = function(){return this.Manager;};
+CApp.prototype.asc_getPages = function(){return this.Pages;};
+
+    function CChangesCorePr(Class, Old, New, Color) {
+        AscDFH.CChangesBase.call(this, Class, Old, New, Color);
+        if(Old && New) {
+            this.OldTitle = Old.title;
+            this.OldCreator = Old.creator;
+            this.OldDescription = Old.description;
+            this.OldSubject = Old.subject;
+
+            this.NewTitle = New.title === Old.title ? undefined : New.title;
+            this.NewCreator = New.creator === Old.creator ? undefined : New.creator;
+            this.NewDescription = New.description === Old.description ? undefined : New.description;
+            this.NewSubject = New.subject === Old.subject ? undefined : New.subject;
+        }
+        else {
+            this.OldTitle = undefined;
+            this.OldCreator = undefined;
+            this.OldDescription = undefined;
+            this.OldSubject = undefined;
+
+            this.NewTitle = undefined;
+            this.NewCreator = undefined;
+            this.NewDescription = undefined;
+            this.NewSubject = undefined;
+        }
+    }
+    CChangesCorePr.prototype = Object.create(AscDFH.CChangesBase.prototype);
+    CChangesCorePr.prototype.constructor = CChangesCorePr;
+    CChangesCorePr.prototype.Type = AscDFH.historyitem_CoreProperties;
+    CChangesCorePr.prototype.Undo = function(){
+        if(!this.Class) {
+            return;
+        }
+        this.Class.title = this.OldTitle;
+        this.Class.creator = this.OldCreator;
+        this.Class.description = this.OldDescription;
+        this.Class.subject = this.OldSubject;
+    };
+    CChangesCorePr.prototype.Redo = function(){
+        if(!this.Class) {
+            return;
+        }
+        if(this.NewTitle !== undefined) {
+            this.Class.title = this.NewTitle;
+        }
+        if(this.NewCreator !== undefined) {
+            this.Class.creator = this.NewCreator;
+        }
+        if(this.NewDescription !== undefined) {
+            this.Class.description = this.NewDescription;
+        }
+        if(this.NewSubject !== undefined) {
+            this.Class.subject = this.NewSubject;
+        }
+    };
+    CChangesCorePr.prototype.WriteToBinary = function(Writer) {
+        var nFlags = 0;
+        if (undefined !== this.NewTitle) {
+            nFlags |= 1;
+        }
+        if (undefined !== this.NewCreator) {
+            nFlags |= 2;
+        }
+        if (undefined !== this.NewDescription) {
+            nFlags |= 4;
+        }
+        if (undefined !== this.NewSubject) {
+            nFlags |= 8;
+        }
+
+        Writer.WriteLong(nFlags);
+        var bIsField;
+        if(nFlags & 1) {
+            bIsField = typeof this.NewTitle === "string";
+            Writer.WriteBool(bIsField);
+            if(bIsField) {
+                Writer.WriteString2(this.NewTitle);
+            }
+        }
+        if(nFlags & 2) {
+            bIsField = typeof this.NewCreator === "string";
+            Writer.WriteBool(bIsField);
+            if(bIsField) {
+                Writer.WriteString2(this.NewCreator);
+            }
+        }
+        if(nFlags & 4) {
+            bIsField = typeof this.NewDescription === "string";
+            Writer.WriteBool(bIsField);
+            if(bIsField) {
+                Writer.WriteString2(this.NewDescription);
+            }
+        }
+        if(nFlags & 8) {
+            bIsField = typeof this.NewSubject === "string";
+            Writer.WriteBool(bIsField);
+            if(bIsField) {
+                Writer.WriteString2(this.NewSubject);
+            }
+        }
+    };
+
+    CChangesCorePr.prototype.ReadFromBinary = function(Reader) {
+        var nFlags = Reader.GetLong();
+        var bIsField;
+        if(nFlags & 1) {
+            bIsField = Reader.GetBool();
+            if(bIsField) {
+                this.NewTitle = Reader.GetString2();
+            }
+            else {
+                this.NewTitle = null;
+            }
+        }
+        if(nFlags & 2) {
+            bIsField = Reader.GetBool();
+            if(bIsField) {
+                this.NewCreator = Reader.GetString2();
+            }
+            else {
+                this.NewCreator = null;
+            }
+        }
+        if(nFlags & 4) {
+            bIsField = Reader.GetBool();
+            if(bIsField) {
+                this.NewDescription = Reader.GetString2();
+            }
+            else {
+                this.NewDescription = null;
+            }
+        }
+        if(nFlags & 8) {
+            bIsField = Reader.GetBool();
+            if(bIsField) {
+                this.NewSubject = Reader.GetString2();
+            }
+            else {
+                this.NewSubject = null;
+            }
+        }
+    };
+    CChangesCorePr.prototype.CreateReverseChange = function(){
+        var ret = new CChangesCorePr(this.Class);
+        ret.OldTitle = this.NewTitle ;
+        ret.OldCreator = this.NewCreator;
+        ret.OldDescription = this.NewCreator;
+        ret.OldSubject = this.NewSubject;
+        ret.NewTitle = this.OldTitle ;
+        ret.NewCreator = this.OldCreator;
+        ret.NewDescription = this.OldCreator;
+        ret.NewSubject = this.OldSubject;
+        return ret;
+    };
+
+    AscDFH.changesFactory[AscDFH.historyitem_CoreProperties] = CChangesCorePr;
+
+function CCore() {
+    this.category = null;
+    this.contentStatus = null;//Status in menu
+    this.created = null;
+    this.creator = null;// Authors in menu
+    this.description = null;//Comments in menu
+    this.identifier = null;
+    this.keywords = null;
+    this.language = null;
+    this.lastModifiedBy = null;
+    this.lastPrinted = null;
+    this.modified = null;
+    this.revision = null;
+    this.subject = null;
+    this.title = null;
+    this.version = null;
+
+    this.Id = AscCommon.g_oIdCounter.Get_NewId();
+    this.Lock = new AscCommon.CLock();
+    this.lockType = AscCommon.c_oAscLockTypes.kLockTypeNone;
+    AscCommon.g_oTableId.Add( this, this.Id );
 }
+CCore.prototype.fromStream = function(s)
+{
+    var _type = s.GetUChar();
+    var _len = s.GetULong();
+    var _start_pos = s.cur;
+    var _end_pos = _len + _start_pos;
+    var _at;
+
+    // attributes
+    var _sa = s.GetUChar();
+
+    while (true)
+    {
+        _at = s.GetUChar();
+
+        if (_at == g_nodeAttributeEnd)
+            break;
+
+        switch (_at)
+        {
+            case 0: { this.title = s.GetString2(); break; }
+            case 1: { this.creator = s.GetString2(); break; }
+            case 2: { this.lastModifiedBy = s.GetString2(); break; }
+            case 3: { this.revision = s.GetString2(); break; }
+            case 4: { this.created = this.readDate(s.GetString2()); break; }
+            case 5: { this.modified = this.readDate(s.GetString2()); break; }
+            default:
+                return;
+        }
+    }
+    while (true)
+    {
+        if (s.cur >= _end_pos)
+            break;
+
+        _type = s.GetUChar();
+        switch (_type)
+        {
+            case 0:
+            {
+                var _end_rec2 = s.cur + s.GetLong() + 4;
+                s.Skip2(1); // start attributes
+                while (true)
+                {
+                    _at = s.GetUChar();
+                    if (_at == g_nodeAttributeEnd)
+                        break;
+
+                    switch (_at)
+                    {
+                        case 6: { this.category = s.GetString2(); break; }
+                        case 7: { this.contentStatus = s.GetString2(); break; }
+                        case 8: { this.description = s.GetString2(); break; }
+                        case 9: { this.identifier = s.GetString2(); break; }
+                        case 10: { this.keywords = s.GetString2(); break; }
+                        case 11: { this.language = s.GetString2(); break; }
+                        case 12: { this.lastPrinted = this.readDate(s.GetString2()); break; }
+                        case 13: { this.subject = s.GetString2(); break; }
+                        case 14: { this.version = s.GetString2(); break; }
+                        default:
+                            return;
+                    }
+                }
+                s.Seek2(_end_rec2);
+                break;
+            }
+            default:
+            {
+                s.SkipRecord();
+                break;
+            }
+        }
+    }
+    s.Seek2(_end_pos);
+};
+CCore.prototype.readDate = function(val)
+{
+    val = new Date(val);
+    return val instanceof Date && !isNaN(val) ? val : null;
+};
+CCore.prototype.toStream = function(s, api) {
+    s.StartRecord(AscCommon.c_oMainTables.Core);
+
+    s.WriteUChar(AscCommon.g_nodeAttributeStart);
+
+    s._WriteString2(0, this.title);
+    s._WriteString2(1, this.creator);
+    if(api && api.DocInfo){
+        s._WriteString2(2, api.DocInfo.get_UserName());
+    }
+    var revision = 0;
+    if (this.revision) {
+        var rev = parseInt(this.revision);
+        if (!isNaN(rev)) {
+            revision = rev;
+        }
+    }
+    s._WriteString2(3, (revision + 1).toString());
+
+    if (this.created) {
+        s._WriteString2(4, this.created.toISOString().slice(0, 19) + 'Z');
+    }
+    s._WriteString2(5, new Date().toISOString().slice(0, 19) + 'Z');
+
+    s.WriteUChar(g_nodeAttributeEnd);
+
+    s.StartRecord(0);
+
+    s.WriteUChar(AscCommon.g_nodeAttributeStart);
+
+    s._WriteString2(6, this.category);
+    s._WriteString2(7, this.contentStatus);
+    s._WriteString2(8, this.description);
+    s._WriteString2(9, this.identifier);
+    s._WriteString2(10, this.keywords);
+    s._WriteString2(11, this.language);
+    // we don't track it
+    // if (this.lastPrinted) {
+    //     s._WriteString1(12, this.lastPrinted.toISOString().slice(0, 19) + 'Z');
+    // }
+    s._WriteString2(13, this.subject);
+    s._WriteString2(14, this.version);
+
+    s.WriteUChar(g_nodeAttributeEnd);
+
+    s.EndRecord();
+
+    s.EndRecord();
+};
+CCore.prototype.asc_getTitle = function(){return this.title;};
+CCore.prototype.asc_getCreator = function(){return this.creator;};
+CCore.prototype.asc_getLastModifiedBy = function(){return this.lastModifiedBy;};
+CCore.prototype.asc_getRevision = function(){return this.revision;};
+CCore.prototype.asc_getCreated = function(){return this.created;};
+CCore.prototype.asc_getModified = function(){return this.modified;};
+CCore.prototype.asc_getCategory = function(){return this.category;};
+CCore.prototype.asc_getContentStatus = function(){return this.contentStatus;};
+CCore.prototype.asc_getDescription = function(){return this.description;};
+CCore.prototype.asc_getIdentifier = function(){return this.identifier;};
+CCore.prototype.asc_getKeywords = function(){return this.keywords;};
+CCore.prototype.asc_getLanguage = function(){return this.language;};
+CCore.prototype.asc_getLastPrinted = function(){return this.lastPrinted;};
+CCore.prototype.asc_getSubject = function(){return this.subject;};
+CCore.prototype.asc_getVersion = function(){return this.version;};
+
+CCore.prototype.asc_putTitle = function(v){this.title = v;};
+CCore.prototype.asc_putCreator = function(v){this.creator = v;};
+CCore.prototype.asc_putLastModifiedBy = function(v){this.lastModifiedBy = v;};
+CCore.prototype.asc_putRevision = function(v){this.revision = v;};
+CCore.prototype.asc_putCreated = function(v){this.created = v;};
+CCore.prototype.asc_putModified = function(v){this.modified = v;};
+CCore.prototype.asc_putCategory = function(v){this.category = v;};
+CCore.prototype.asc_putContentStatus = function(v){this.contentStatus = v;};
+CCore.prototype.asc_putDescription = function(v){this.description = v;};
+CCore.prototype.asc_putIdentifier = function(v){this.identifier = v;};
+CCore.prototype.asc_putKeywords = function(v){this.keywords = v;};
+CCore.prototype.asc_putLanguage = function(v){this.language = v;};
+CCore.prototype.asc_putLastPrinted = function(v){this.lastPrinted = v;};
+CCore.prototype.asc_putSubject = function(v){this.subject = v;};
+CCore.prototype.asc_putVersion = function(v){this.version = v;};
+
+CCore.prototype.setProps = function(oProps){
+    History.Add(new CChangesCorePr(this, this, oProps, null));
+    this.title = oProps.title;
+    this.creator = oProps.creator;
+    this.description = oProps.description;
+    this.subject = oProps.subject;
+};
+CCore.prototype.Get_Id = function(){
+    return this.Id;
+};
+CCore.prototype.Refresh_RecalcData = function(){
+};
+
+CCore.prototype.Refresh_RecalcData2 = function(){
+};
+
+
+    CCore.prototype.getObjectType = function () {
+        return AscDFH.historyitem_type_Core;
+    };
+
+    CCore.prototype.Write_ToBinary2 = function (oWriter) {
+        oWriter.WriteLong(this.getObjectType());
+        oWriter.WriteString2(this.Get_Id());
+    };
+
+    CCore.prototype.Read_FromBinary2 = function (oReader) {
+        this.Id = oReader.GetString2();
+    };
+
+
+    CCore.prototype.copy = function(){
+        return AscFormat.ExecuteNoHistory(function(){
+            var oCopy = new CCore();
+            oCopy.category = this.category;
+            oCopy.contentStatus = this.contentStatus;
+            oCopy.created = this.created;
+            oCopy.creator = this.creator;
+            oCopy.description = this.description;
+            oCopy.identifier = this.identifier;
+            oCopy.keywords = this.keywords;
+            oCopy.language = this.language;
+            oCopy.lastModifiedBy = this.lastModifiedBy;
+            oCopy.lastPrinted = this.lastPrinted;
+            oCopy.modified = this.modified;
+            oCopy.revision = this.revision;
+            oCopy.subject = this.subject;
+            oCopy.title = this.title;
+            oCopy.version = this.version;
+            return oCopy;
+        }, this, []);
+    };
 
 function CPres()
 {
@@ -9260,6 +10957,14 @@ function CPres()
                     case 5:
                     {
                         s.SkipRecord();
+                        break;
+                    }
+                    case 9:
+                    {
+                        GrObject = this.Reader.ReadGroupShape(9);
+                        if(paraDrawing){
+                            GrObject.setParent(paraDrawing);
+                        }
                         break;
                     }
                     default:
@@ -9768,14 +11473,14 @@ function CPres()
                     {
                         if(isOle) {
                             this.ReadOleInfo(pic);
-                            if(pic.m_sObjectFile === "maskFile.docx"
-                                ||  pic.m_sObjectFile === "maskFile.xlsx"){
-                                var oParent = pic.parent;
-                                pic = AscFormat.CImageShape.prototype.copy.call(pic);
-                                if(oParent){
-                                    pic.setParent(oParent);
-                                }
-                            }
+                            // if(pic.m_sObjectFile === "maskFile.docx"
+                            //     ||  pic.m_sObjectFile === "maskFile.xlsx"){
+                            //     var oParent = pic.parent;
+                            //     pic = AscFormat.CImageShape.prototype.copy.call(pic);
+                            //     if(oParent){
+                            //         pic.setParent(oParent);
+                            //     }
+                            // }
                         } else {
                             s.SkipRecord();
                         }
@@ -9814,7 +11519,7 @@ function CPres()
 
             if(type === 7 || type === 8){//video or audio
                 if(typeof sMaskFileName === "string" && sMaskFileName.length > 0 &&
-                    pic.nvPicPr && pic.nvPicPr.nvPr && pic.nvPicPr.nvPr.unimedia){
+                    pic.nvPicPr && pic.nvPicPr.nvPr /*&& pic.nvPicPr.nvPr.unimedia*/){
                     var oUniMedia = new AscFormat.UniMedia();
                     oUniMedia.type = type;
                     oUniMedia.media = sMaskFileName;
@@ -9901,23 +11606,29 @@ function CPres()
                     {
                         s.GetLong();//length
                         oleType = s.GetUChar();
+                        ole.setOleType(oleType);
                         break;
                     }
                     case 2:
                     {
 
+                        var binary_length;
                         switch(oleType)
                         {
                             case 1:
                             {
                                 ole.setObjectFile("maskFile.docx");
-                                s.SkipRecord();
+                                binary_length = s.GetULong();
+                                ole.setBinaryData(s.data.slice(s.cur, s.cur + binary_length));
+                                s.Seek2(s.cur + binary_length);
                                 break;
                             }
                             case 2:
                             {
                                 ole.setObjectFile("maskFile.xlsx");
-                                s.SkipRecord();
+                                binary_length = s.GetULong();
+                                ole.setBinaryData(s.data.slice(s.cur, s.cur + binary_length));
+                                s.Seek2(s.cur + binary_length);
                                 break;
                             }
                             case 4:
@@ -10161,8 +11872,7 @@ function CPres()
                     }
                     case 4:
                     {
-                        var _len = s.GetULong();
-                        s.Skip2(_len);
+                        spPr.setEffectPr(this.Reader.ReadEffectProperties());
                         break;
                     }
                     case 5:
@@ -10276,4 +11986,63 @@ function CPres()
     window['AscCommon'].BinaryPPTYLoader = BinaryPPTYLoader;
     window['AscCommon'].IsHiddenObj = IsHiddenObj;
     window['AscCommon'].pptx_content_loader = new CPPTXContentLoader();
+    window['AscCommon'].CApp = CApp;
+    prot = CApp.prototype;
+    prot["asc_getTemplate"] = prot.asc_getTemplate;
+    prot["asc_getTotalTime"] = prot.asc_getTotalTime;
+    prot["asc_getWords"] = prot.asc_getWords;
+    prot["asc_getApplication"] = prot.asc_getApplication;
+    prot["asc_getPresentationFormat"] = prot.asc_getPresentationFormat;
+    prot["asc_getParagraphs"] = prot.asc_getParagraphs;
+    prot["asc_getSlides"] = prot.asc_getSlides;
+    prot["asc_getNotes"] = prot.asc_getNotes;
+    prot["asc_getHiddenSlides"] = prot.asc_getHiddenSlides;
+    prot["asc_getMMClips"] = prot.asc_getMMClips;
+    prot["asc_getScaleCrop"] = prot.asc_getScaleCrop;
+    prot["asc_getCompany"] = prot.asc_getCompany;
+    prot["asc_getLinksUpToDate"] = prot.asc_getLinksUpToDate;
+    prot["asc_getSharedDoc"] = prot.asc_getSharedDoc;
+    prot["asc_getHyperlinksChanged"] = prot.asc_getHyperlinksChanged;
+    prot["asc_getAppVersion"] = prot.asc_getAppVersion;
+    prot["asc_getCharacters"] = prot.asc_getCharacters;
+    prot["asc_getCharactersWithSpaces"] = prot.asc_getCharactersWithSpaces;
+    prot["asc_getDocSecurity"] = prot.asc_getDocSecurity;
+    prot["asc_getHyperlinkBase"] = prot.asc_getHyperlinkBase;
+    prot["asc_getLines"] = prot.asc_getLines;
+    prot["asc_getManager"] = prot.asc_getManager;
+    prot["asc_getPages"] = prot.asc_getPages;
+    window['AscCommon'].CCore = CCore;
+    prot = CCore.prototype;
+    prot["asc_getTitle"] = prot.asc_getTitle;
+    prot["asc_getCreator"] = prot.asc_getCreator;
+    prot["asc_getLastModifiedBy"] = prot.asc_getLastModifiedBy;
+    prot["asc_getRevision"] = prot.asc_getRevision;
+    prot["asc_getCreated"] = prot.asc_getCreated;
+    prot["asc_getModified"] = prot.asc_getModified;
+    prot["asc_getCategory"] = prot.asc_getCategory;
+    prot["asc_getContentStatus"] = prot.asc_getContentStatus;
+    prot["asc_getDescription"] = prot.asc_getDescription;
+    prot["asc_getIdentifier"] = prot.asc_getIdentifier;
+    prot["asc_getKeywords"] = prot.asc_getKeywords;
+    prot["asc_getLanguage"] = prot.asc_getLanguage;
+    prot["asc_getLastPrinted"] = prot.asc_getLastPrinted;
+    prot["asc_getSubject"] = prot.asc_getSubject;
+    prot["asc_getVersion"] = prot.asc_getVersion;
+
+    prot["asc_putTitle"] = prot.asc_putTitle;
+    prot["asc_putCreator"] = prot.asc_putCreator;
+    prot["asc_putLastModifiedBy"] = prot.asc_putLastModifiedBy;
+    prot["asc_putRevision"] = prot.asc_putRevision;
+    prot["asc_putCreated"] = prot.asc_putCreated;
+    prot["asc_putModified"] = prot.asc_putModified;
+    prot["asc_putCategory"] = prot.asc_putCategory;
+    prot["asc_putContentStatus"] = prot.asc_putContentStatus;
+    prot["asc_putDescription"] = prot.asc_putDescription;
+    prot["asc_putIdentifier"] = prot.asc_putIdentifier;
+    prot["asc_putKeywords"] = prot.asc_putKeywords;
+    prot["asc_putLanguage"] = prot.asc_putLanguage;
+    prot["asc_putLastPrinted"] = prot.asc_putLastPrinted;
+    prot["asc_putSubject"] = prot.asc_putSubject;
+    prot["asc_putVersion"] = prot.asc_putVersion;
+
 })(window);

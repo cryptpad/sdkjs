@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -190,27 +190,34 @@ CGroupShape.prototype.hitInBoundingRect = CShape.prototype.hitInBoundingRect;
 CGroupShape.prototype.getRotateAngle = CShape.prototype.getRotateAngle;
 CGroupShape.prototype.handleUpdatePosition = function()
 {
-    this.recalcTransform();
-    this.addToRecalculate();
-    for(var i = 0; i < this.spTree.length; ++i)
-    {
-        if(this.spTree[i].handleUpdatePosition)
-        {
-            this.spTree[i].handleUpdatePosition();
-        }
-    }
-    this.recalcBounds();
-    this.addToRecalculate();
-    //delete this.fromSerialize;
+    this.handleUpdateExtents(true);
 };
-CGroupShape.prototype.handleUpdateExtents = function()
+CGroupShape.prototype.handleUpdateExtents = function(bCell)
 {
     this.recalcTransform();
     this.recalcBounds();
     this.addToRecalculate();
-    //delete this.fromSerialize;
+    if(bCell)
+    {
+        if(this.spTree)
+        {
+            for(var i = 0; i < this.spTree.length; ++i)
+            {
+                if(this.spTree[i].handleUpdateExtents)
+                {
+                    this.spTree[i].handleUpdateExtents(bCell);
+                }
+            }
+        }
+    }
 };
-CGroupShape.prototype.handleUpdateRot = CGroupShape.prototype.handleUpdatePosition;
+CGroupShape.prototype.handleUpdateRot = function()
+{
+    if(this.handleUpdateExtents)
+    {
+        this.handleUpdateExtents(true);
+    }
+};
 CGroupShape.prototype.handleUpdateFlip = CGroupShape.prototype.handleUpdatePosition;
 CGroupShape.prototype.handleUpdateChildOffset = CGroupShape.prototype.handleUpdatePosition;
 CGroupShape.prototype.handleUpdateChildExtents = CGroupShape.prototype.handleUpdatePosition;

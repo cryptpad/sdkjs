@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -1339,6 +1339,8 @@ function CDrawingDocument(drawingObjects)
     this.NeedScrollToTargetFlag = false;
 
     this.TargetHtmlElement = null;
+    this.TargetHtmlElementLeft = 0;
+    this.TargetHtmlElementTop = 0;
 
     this.m_bIsBreakRecalculate = false;
 
@@ -1644,7 +1646,7 @@ function CDrawingDocument(drawingObjects)
         }
 
         // заглушка под мобильную версию (iPad не рисует большие картинки (наверное страховка по памяти))
-        if (g_bIsMobile)
+        if (AscCommon.AscBrowser.isMobile)
         {
             var _mobile_max = 2000;
             if (w > _mobile_max || h > _mobile_max)
@@ -1902,7 +1904,7 @@ function CDrawingDocument(drawingObjects)
         var x_mm = (_x - rect.left) * dKoef;
         var y_mm = (_y - rect.top) * dKoef;
 
-        return { X : x_mm, Y : y_mm, Page: rect.pageIndex, DrawPage: i };
+        return { X : x_mm, Y : y_mm, Page: rect.pageIndex, DrawPage: page };
     }
 
     this.ConvertCoordsToAnotherPage = function(x, y, pageCoord, pageNeed)
@@ -2312,6 +2314,8 @@ function CDrawingDocument(drawingObjects)
 			targetPosX = (Math.min(pos1.X, pos2.X) / _factor) >> 0;
             targetPosY = (Math.min(pos1.Y, pos2.Y) / _factor) >> 0;
 
+            this.TargetHtmlElementLeft = targetPosX;
+            this.TargetHtmlElementTop = targetPosY;
             this.TargetHtmlElement.style.left = targetPosX + "px";
             this.TargetHtmlElement.style.top = targetPosY + "px";
         }
@@ -2347,6 +2351,8 @@ function CDrawingDocument(drawingObjects)
 			targetPosX = (pos.X / _factor) >> 0;
 			targetPosY = (pos.Y / _factor) >> 0;
 
+            this.TargetHtmlElementLeft = targetPosX;
+            this.TargetHtmlElementTop = targetPosY;
 			this.TargetHtmlElement.style.left = targetPosX + "px";
 			this.TargetHtmlElement.style.top = targetPosY + "px";
         }
@@ -3194,7 +3200,7 @@ function CDrawingDocument(drawingObjects)
         if (this.m_oWordControl.MobileTouchManager)
         {
             this.m_oWordControl.MobileTouchManager.TableStartTrack_Check = true;
-            markup.Table.Start_TrackTable();
+            markup.Table.StartTrackTable();
             this.m_oWordControl.MobileTouchManager.TableStartTrack_Check = false;
         }
     }
@@ -4226,10 +4232,11 @@ function CDrawingDocument(drawingObjects)
             table.Recalculate_Page(0);
             table.Draw(0, graphics);
 
-            var _styleD = new Asc.CAscTableStyle();
-            _styleD.Type = 0;
-            _styleD.Image = _canvas.toDataURL("image/png");
-            _styleD.Id = i;
+            var _styleD = new AscCommon.CStyleImage();
+            _styleD.type = AscCommon.c_oAscStyleImage.Default;
+            _styleD.image = _canvas.toDataURL("image/png");
+            _styleD.name = i;
+            _styleD.displayName = _style.Name;
             _dst_styles.push(_styleD);
         }
         History.TurnOn();

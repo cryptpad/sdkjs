@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -257,6 +257,7 @@ function CShapeDrawer()
     this.bIsTexture         = false;
     this.bIsNoFillAttack    = false;
     this.bIsNoStrokeAttack  = false;
+    this.bDrawSmartAttack = false;
     this.FillUniColor       = null;
     this.StrokeUniColor     = null;
     this.StrokeWidth        = 0;
@@ -423,7 +424,13 @@ CShapeDrawer.prototype =
         }
 
         if (this.Ln == null || this.Ln.Fill == null || this.Ln.Fill.fill == null)
+        {
             this.bIsNoStrokeAttack = true;
+            if (true === graphics.IsTrack)
+                graphics.Graphics.ArrayPoints = null;
+            else
+                graphics.ArrayPoints = null;
+        }
         else
         {
             var _fill = this.Ln.Fill.fill;
@@ -490,13 +497,14 @@ CShapeDrawer.prototype =
 			if (graphics.IsSlideBoundsCheckerType && !this.bIsNoStrokeAttack)
                 graphics.LineWidth = this.StrokeWidth;
 
+            var isUseArrayPoints = false;
             if ((this.Ln.headEnd != null && this.Ln.headEnd.type != null) || (this.Ln.tailEnd != null && this.Ln.tailEnd.type != null))
-            {
-                if (true === graphics.IsTrack)
-                    graphics.Graphics.ArrayPoints = [];
-                else
-                    graphics.ArrayPoints = [];
-        }
+                isUseArrayPoints = true;
+
+            if (true === graphics.IsTrack && graphics.Graphics != undefined && graphics.Graphics != null)
+                graphics.Graphics.ArrayPoints = isUseArrayPoints ? [] : null;
+            else
+                graphics.ArrayPoints = isUseArrayPoints ? [] : null;
 
             if (this.Graphics.m_oContext != null && this.Ln.Join != null && this.Ln.Join.type != null)
                 this.OldLineJoin = this.Graphics.m_oContext.lineJoin;
@@ -807,6 +815,11 @@ CShapeDrawer.prototype =
 		if (this.Graphics.IsSlideBoundsCheckerType)
 			return;
 
+        if (this.Graphics.RENDERER_PDF_FLAG)
+        {
+            this.Graphics.drawpath(1);
+            return;
+        }
         if (this.Ln.Join != null && this.Ln.Join.type != null)
         {
             switch (this.Ln.Join.type)
@@ -1158,8 +1171,10 @@ CShapeDrawer.prototype =
         else
         {
             // такого быть не должно по идее
-            this.Graphics.b_color1(0, 0, 0, 0);
-            this.Graphics.drawpath(256);
+            // может - см выше: 1) this.Graphics.drawImage(...); 2) bIsFill = false;
+
+            //this.Graphics.b_color1(0, 0, 0, 0);
+            //this.Graphics.drawpath(256);
         }
 
         var arr = this.Graphics.ArrayPoints;

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -71,6 +71,30 @@ CDocumentContentElementBase.prototype.Get_Type = function()
 CDocumentContentElementBase.prototype.GetType = function()
 {
 	return type_Unknown;
+};
+/**
+ * Является ли данный элемент параграфом
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsParagraph = function()
+{
+	return (this.GetType() === type_Paragraph);
+};
+/**
+ * Является ли данный элемент таблицей
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsTable = function()
+{
+	return (this.GetType() === type_Table);
+};
+/**
+ * Является ли данный элемент блочным контейнером
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsBlockLevelSdt = function()
+{
+	return (this.GetType() === type_BlockLevelSdt);
 };
 CDocumentContentElementBase.prototype.Is_Inline = function()
 {
@@ -410,14 +434,14 @@ CDocumentContentElementBase.prototype.AddTextArt = function(nStyle)
 CDocumentContentElementBase.prototype.AddInlineTable = function(nCols, nRows)
 {
 };
-CDocumentContentElementBase.prototype.Remove = function(nCount, bOnlyText, bRemoveOnlySelection, bOnAddText)
+CDocumentContentElementBase.prototype.Remove = function(nCount, bOnlyText, bRemoveOnlySelection, bOnAddText, isWord)
 {
 };
-CDocumentContentElementBase.prototype.Set_ReviewType = function(ReviewType)
+CDocumentContentElementBase.prototype.SetReviewType = function(ReviewType)
 {
 
 };
-CDocumentContentElementBase.prototype.Get_ReviewType = function()
+CDocumentContentElementBase.prototype.GetReviewType = function()
 {
 	return reviewtype_Common;
 };
@@ -538,6 +562,10 @@ CDocumentContentElementBase.prototype.SplitTableCells = function(nColsCount, nRo
 {
 	return false;
 };
+CDocumentContentElementBase.prototype.RemoveTableCells = function()
+{
+	return false;
+};
 CDocumentContentElementBase.prototype.RemoveTable = function()
 {
 	return false;
@@ -653,6 +681,10 @@ CDocumentContentElementBase.prototype.GetStyleFromFormatting = function()
 CDocumentContentElementBase.prototype.GetAllContentControls = function(arrContentControls)
 {
 };
+/**
+ * Проверяем выделен ли элемент целиком
+ * @returns {boolean}
+ */
 CDocumentContentElementBase.prototype.IsSelectedAll = function()
 {
 	return false;
@@ -675,7 +707,7 @@ CDocumentContentElementBase.prototype.FindNextFillingForm = function(isNext, isC
 {
 	return null;
 };
-CDocumentContentElementBase.prototype.GetRevisionsChangeParagraph = function(SearchEngine)
+CDocumentContentElementBase.prototype.GetRevisionsChangeElement = function(SearchEngine)
 {
 	return null;
 };
@@ -700,12 +732,7 @@ CDocumentContentElementBase.prototype.GetDocumentPositionFromObject = function(P
 };
 CDocumentContentElementBase.prototype.Get_Index = function()
 {
-	if (!this.Parent)
-		return -1;
-
-	this.Parent.Update_ContentIndexing();
-
-	return this.Index;
+	return this.GetIndex();
 };
 CDocumentContentElementBase.prototype.GetOutlineParagraphs = function(arrOutline, oPr)
 {
@@ -771,6 +798,22 @@ CDocumentContentElementBase.prototype.GetAbsoluteColumn = function(CurPage)
 {
 	return this.Get_AbsoluteColumn(CurPage);
 };
+/**
+ * Получаем начальный номер страницы данного элемента относительно родительского класса
+ * @returns {number}
+ */
+CDocumentContentElementBase.prototype.GetStartPageRelative = function()
+{
+	return this.PageNum;
+};
+/**
+ * Получаем обсолютный начальный номер страницы данного элемента
+ * @returns {number}
+ */
+CDocumentContentElementBase.prototype.GetStartPageAbsolute = function()
+{
+	return this.private_GetAbsolutePageIndex(0);
+};
 //----------------------------------------------------------------------------------------------------------------------
 CDocumentContentElementBase.prototype.GetPagesCount = function()
 {
@@ -778,6 +821,14 @@ CDocumentContentElementBase.prototype.GetPagesCount = function()
 };
 CDocumentContentElementBase.prototype.GetIndex = function()
 {
+	if (!this.Parent)
+		return -1;
+
+	this.Parent.Update_ContentIndexing();
+
+	if (this !== this.Parent.GetElement(this.Index))
+		this.Index = -1;
+
 	return this.Index;
 };
 CDocumentContentElementBase.prototype.GetPageBounds = function(CurPage)
@@ -808,13 +859,12 @@ CDocumentContentElementBase.prototype.SetSelectionState2 = function(State)
 {
 	return this.Set_SelectionState2(State);
 };
-CDocumentContentElementBase.prototype.SetReviewType = function(ReviewType)
+CDocumentContentElementBase.prototype.GetReviewInfo = function()
 {
-	this.Set_ReviewType(ReviewType);
+	return new CReviewInfo();
 };
-CDocumentContentElementBase.prototype.GetReviewType = function()
+CDocumentContentElementBase.prototype.SetReviewTypeWithInfo = function(nType, oInfo)
 {
-	return this.Get_ReviewType();
 };
 CDocumentContentElementBase.prototype.IsEmpty = function(oProps)
 {
@@ -957,6 +1007,96 @@ CDocumentContentElementBase.prototype.SetIsRecalculated = function(isRecalculate
 CDocumentContentElementBase.prototype.IsRecalculated = function()
 {
 	return this.Recalculated;
+};
+/**
+ * Проверяем выделен ли сейчас какой-либо плейсхолдер, если да, то возвращаем управляющий объект
+ * @returns {?Object}
+ */
+CDocumentContentElementBase.prototype.GetPlaceHolderObject = function()
+{
+	return null;
+};
+/**
+ * Получаем массив все полей в документе (простых и сложных)
+ * @param isUseSelection {boolean} ищем по селекут или вообще все
+ * @param arrFields - массив, который мы заполняем, если не задан, то создается новый и возвращается
+ * @returns {Array}
+ */
+CDocumentContentElementBase.prototype.GetAllFields = function(isUseSelection, arrFields)
+{
+	return arrFields ? arrFields : [];
+};
+/**
+ * Получаем верхний элемент в документе, в котором лежит данный элемент
+ * @returns {?CDocumentContentElementBase}
+ */
+CDocumentContentElementBase.prototype.GetTopElement = function()
+{
+	if (!this.Parent)
+		return null;
+
+	if (this.Parent === this.Parent.Is_TopDocument(true))
+		return this;
+
+	return this.Parent.GetTopElement();
+};
+/**
+ * Получаем объект лока данного элемента
+ * @returns {AscCommon.CLock}
+ */
+CDocumentContentElementBase.prototype.GetLock = function()
+{
+	return this.Lock;
+};
+/**
+ * Если мы находимся в колонтитуле возвращаем его
+ * @returns {?CHdrFtr}
+ */
+CDocumentContentElementBase.prototype.GetHdrFtr = function()
+{
+	if (this.Parent)
+		return this.Parent.IsHdrFtr(true);
+
+	return null;
+};
+/**
+ * Используется ли данный элемент в содержимом документа
+ * @param {string} sId - идентификатор внутреннего класса
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.IsUseInDocument = function(sId)
+{
+	return this.Is_UseInDocument(sId);
+};
+CDocumentContentElementBase.prototype.Is_UseInDocument = function(sId)
+{
+	return false;
+};
+/**
+ * Пробегаемся по все ранам с заданной функцией
+ * @param fCheck - функция проверки содержимого рана
+ * @returns {boolean}
+ */
+CDocumentContentElementBase.prototype.CheckRunContent = function(fCheck)
+{
+	return false;
+};
+/**
+ * По заданной странице получаем страницу, с которой нужно начинать расчет
+ * @param {number} nPageAbs
+ * @return {number}
+ */
+CDocumentContentElementBase.prototype.GetStartPageForRecalculate = function(nPageAbs)
+{
+	return nPageAbs;
+};
+/**
+ * Проверяем выделено ли сейчас какое-либо презентационное поле, если да, то возвращаем управляющий объект
+ * @returns {?Object}
+ */
+CDocumentContentElementBase.prototype.GetPresentationField = function()
+{
+	return null;
 };
 
 //--------------------------------------------------------export--------------------------------------------------------

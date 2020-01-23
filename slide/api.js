@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -36,8 +36,6 @@
 {
 
 	// Import
-	var c_oAscAdvancedOptionsAction = AscCommon.c_oAscAdvancedOptionsAction;
-	var DownloadType                = AscCommon.DownloadType;
 	var locktype_None               = AscCommon.locktype_None;
 	var locktype_Mine               = AscCommon.locktype_Mine;
 	var locktype_Other              = AscCommon.locktype_Other;
@@ -47,7 +45,6 @@
 	var asc_CSelectedObject         = AscCommon.asc_CSelectedObject;
 	var g_oDocumentUrls             = AscCommon.g_oDocumentUrls;
 	var sendCommand                 = AscCommon.sendCommand;
-	var mapAscServerErrorToAscError = AscCommon.mapAscServerErrorToAscError;
 	var g_oIdCounter                = AscCommon.g_oIdCounter;
 	var g_oTableId                  = AscCommon.g_oTableId;
 	var PasteElementsId             = null;
@@ -63,6 +60,7 @@
 	var c_oAscFill              = Asc.c_oAscFill;
 	var asc_CShapeFill          = Asc.asc_CShapeFill;
 	var asc_CFillBlip           = Asc.asc_CFillBlip;
+    var c_oAscFontRenderingModeType = Asc.c_oAscFontRenderingModeType;
 
 	function CAscSlideProps()
 	{
@@ -575,17 +573,14 @@
 		this.documentFormatSave = c_oAscFileType.PPTX;
 
 		this.ThemeLoader   = null;
+		this.standartThemesStatus = 0;
 		this.tmpThemesPath = null;
 		this.tmpIsFreeze   = null;
 		this.tmpSlideDiv   = null;
 		this.tmpTextArtDiv = null;
 		this.tmpViewRulers = null;
 		this.tmpZoomType   = null;
-
-        // Spell Checking
-        this.SpellCheckApi      = new AscCommon.CSpellCheckApi();
-        this.isSpellCheckEnable = true;
-
+        this.tmpDocumentUnits = null;
 
         this.DocumentUrl     = "";
 		this.bNoSendComments = false;
@@ -602,7 +597,6 @@
 		this.isPageBreakBefore    = false;
 		this.isKeepLinesTogether  = false;
 		this.isPresentationEditor = true;
-		this.bAlignBySelected     = false;
 		this.bSelectedSlidesTheme = false;
 
 		this.isPaintFormat              = AscCommon.c_oAscFormatPainterState.kOff;
@@ -616,6 +610,7 @@
 		this.isShapeImageChangeUrl = false;
 		this.isSlideImageChangeUrl = false;
 		this.textureType = null;
+        this.tmpFontRenderingMode = null;
 
 		this.isPasteFonts_Images = false;
 
@@ -826,6 +821,10 @@
 						{
 							editor.sync_LockComment(Class.Get_Id(), e["user"]);
 						}
+						if(Class instanceof AscCommon.CCore)
+						{
+							editor.sendEvent("asc_onLockCore", true);
+						}
 
 						// TODO: Здесь для ускорения надо сделать проверку, является ли текущим элемент с
 						//       заданным Id. Если нет, тогда и не надо обновлять состояние.
@@ -1022,96 +1021,6 @@
 			}
 		};
 
-
-    /////////////////////////////////////////////////////////////////////////
-    //////////////////////////SpellChecking api//////////////////////////////
-    /////////////////////////////////////////////////////////////////////////
-    // Init SpellCheck
-    asc_docs_api.prototype._coSpellCheckInit = function()
-    {
-        if (!this.SpellCheckApi)
-        {
-            return; // Error
-        }
-
-        var t = this;
-        if (window["AscDesktopEditor"]) {
-
-        	window["asc_nativeOnSpellCheck"] = function(response) {
-                var _editor = window["Asc"]["editor"] ? window["Asc"]["editor"] : window.editor;
-                if (_editor.SpellCheckApi)
-                    _editor.SpellCheckApi.onSpellCheck(response);
-            };
-
-			this.SpellCheckApi.spellCheck = function (spellData) {
-                window["AscDesktopEditor"]["SpellCheck"](spellData);
-            };
-            this.SpellCheckApi.disconnect = function () {
-            };
-			if (window["AscDesktopEditor"]["IsLocalFile"] && !window["AscDesktopEditor"]["IsLocalFile"]())
-			{
-				this.sendEvent('asc_onSpellCheckInit', [
-                    "1026",
-                    "1027",
-                    "1029",
-                    "1030",
-                    "1031",
-                    "1032",
-                    "1033",
-                    "1036",
-                    "1038",
-                    "1040",
-                    "1042",
-                    "1043",
-                    "1044",
-                    "1045",
-                    "1046",
-                    "1048",
-                    "1049",
-                    "1050",
-                    "1051",
-                    "1053",
-                    "1055",
-                    "1057",
-                    "1058",
-                    "1060",
-                    "1062",
-                    "1063",
-                    "1066",
-                    "1068",
-                    "1069",
-                    "1087",
-                    "1104",
-                    "1110",
-                    "1134",
-                    "2051",
-                    "2055",
-                    "2057",
-                    "2068",
-                    "2070",
-                    "3079",
-                    "3081",
-                    "3082",
-                    "4105",
-                    "7177",
-                    "9242",
-                    "10266"
-				]);
-			}
-        } else {
-            if (this.SpellCheckUrl && this.isSpellCheckEnable) {
-                this.SpellCheckApi.set_url(this.SpellCheckUrl);
-            }
-        }
-
-        this.SpellCheckApi.onInit = function (e) {
-            t.sendEvent('asc_onSpellCheckInit', e);
-        };
-        this.SpellCheckApi.onSpellCheck = function (e) {
-            t.SpellCheck_CallBack(e);
-        };
-        this.SpellCheckApi.init(this.documentId);
-    };
     //----------------------------------------------------------------------------------------------------------------------
     // SpellCheck_CallBack
     //          Функция ответа от сервера.
@@ -1139,12 +1048,8 @@
         }
     };
 
-    asc_docs_api.prototype.asc_SpellCheckDisconnect   = function()
+    asc_docs_api.prototype._spellCheckDisconnect   = function()
     {
-        if (!this.SpellCheckApi)
-            return; // Error
-        this.SpellCheckApi.disconnect();
-        this.isSpellCheckEnable = false;
         if (this.WordControl.m_oLogicDocument)
             this.WordControl.m_oLogicDocument.TurnOff_CheckSpelling();
     };
@@ -1172,12 +1077,6 @@
 	{
 		if (true !== AscCommon.CollaborativeEditing.Is_Fast())
 			this.sendEvent("asc_onCollaborativeChanges");
-	};
-
-	asc_docs_api.prototype.asyncServerIdEndLoaded = function()
-	{
-		this.ServerIdWaitComplete = true;
-			this.OpenDocumentEndCallback();
 	};
 
 	// Эвент о пришедщих изменениях
@@ -1344,6 +1243,28 @@
 
 	asc_docs_api.prototype.SetThemesPath = function(path)
 	{
+	    if (this.standartThemesStatus == 0)
+        {
+            // 0 - начальное состояние
+            // 1 - просто чтобы не позволить грузить два раза
+            // 2 - загрузка скрипта/конец открытия документа
+            // 3 - конец открытия документа/загрузка скрипта
+
+            this.standartThemesStatus = 1;
+            var t = this;
+            AscCommon.loadScript(path + "/themes.js", function() {
+                t.standartThemesStatus++;
+                if (t.ThemeLoader)
+                    t.ThemeLoader.Themes._init();
+                if (2 < t.standartThemesStatus)
+                    t.WordControl.m_oLogicDocument.SendThemesThumbnails();
+            }, function() {
+                t.standartThemesStatus++;
+                if (2 < t.standartThemesStatus)
+                    t.WordControl.m_oLogicDocument.SendThemesThumbnails();
+            });
+        }
+
 		if (!this.isLoadFullApi)
 		{
 			this.tmpThemesPath = path;
@@ -1425,7 +1346,7 @@ background-repeat: no-repeat;\
 									<canvas id=\"id_hor_ruler\" class=\"block_elem\"></canvas>\
                                 </div>\
                                 <div id=\"id_main_view\" class=\"block_elem\" style=\"overflow:hidden\">\
-                                    <canvas id=\"id_viewer\" class=\"block_elem\" style=\"-ms-touch-action: none;-webkit-user-select: none;background-color:#B0B0B0;z-index:6\"></canvas>\
+                                    <canvas id=\"id_viewer\" class=\"block_elem\" style=\"-ms-touch-action: none;-webkit-user-select: none;background-color:" + AscCommonSlide.GlobalSkin.BackgroundColor + ";z-index:6\"></canvas>\
                                     <canvas id=\"id_viewer_overlay\" class=\"block_elem\" style=\"-ms-touch-action: none;-webkit-user-select: none;z-index:7\"></canvas>\
                                     <canvas id=\"id_target_cursor\" class=\"block_elem\" width=\"1\" height=\"1\" style=\"-ms-touch-action: none;-webkit-user-select: none;width:2px;height:13px;display:none;z-index:9;\"></canvas>\
                                 </div>\
@@ -1529,15 +1450,6 @@ background-repeat: no-repeat;\
 			setInterval(AscCommon.SafariIntervalFocus, 10);
 	};
 
-	asc_docs_api.prototype._OfflineAppDocumentEndLoad = function()
-	{
-		if (undefined == window["editor_bin"])
-			return;
-
-		this.OpenDocument2(this.documentUrl, window["editor_bin"]);
-		//callback
-		this.DocumentOrientation = (null == this.WordControl.m_oLogicDocument) ? true : !this.WordControl.m_oLogicDocument.Orientation;
-	};
 	// Callbacks
 	/* все имена callback'оф начинаются с On. Пока сделаны:
 	 OnBold,
@@ -1729,17 +1641,14 @@ background-repeat: no-repeat;\
 	};
 	/*----------------------------------------------------------------*/
 	/*functions for working with clipboard, document*/
-	/*TODO: Print,Undo,Redo,Copy,Cut,Paste,Share,Save,DownloadAs,ReturnToDocuments(вернуться на предыдущую страницу) & callbacks for these functions*/
-	asc_docs_api.prototype.asc_Print      = function(bIsDownloadEvent)
+	asc_docs_api.prototype._printDesktop = function (options)
 	{
+		var opt = 0;
+        if (options && options.advancedOptions && options.advancedOptions && (Asc.c_oAscPrintType.Selection === options.advancedOptions.asc_getPrintType()))
+            opt |= 1;
 
-		if (window["AscDesktopEditor"])
-		{
-			window["AscDesktopEditor"]["Print"]();
-			return;
-		}
-		var options = {downloadType : bIsDownloadEvent ? DownloadType.Print : DownloadType.None};
-		this._downloadAs(c_oAscFileType.PDF, c_oAscAsyncAction.Print, options);
+		window["AscDesktopEditor"]["Print"](opt);
+		return true;
 	};
 	asc_docs_api.prototype.Undo           = function()
 	{
@@ -1790,6 +1699,11 @@ background-repeat: no-repeat;\
 
 	asc_docs_api.prototype.asc_ShowSpecialPasteButton = function(props)
 	{
+		if (window["NATIVE_EDITOR_ENJINE"])
+		{
+			return;
+		}
+
 		var presentation = editor.WordControl.m_oLogicDocument;
 		var drawingDocument = presentation.DrawingDocument;
 		var notesFocus = presentation.IsFocusOnNotes();
@@ -1841,11 +1755,19 @@ background-repeat: no-repeat;\
 
 	asc_docs_api.prototype.asc_HideSpecialPasteButton = function()
 	{
+		if (window["NATIVE_EDITOR_ENJINE"])
+		{
+			return;
+		}
 		this.sendEvent("asc_onHideSpecialPasteOptions");
 	};
 
 	asc_docs_api.prototype.asc_UpdateSpecialPasteButton = function()
 	{
+		if (window["NATIVE_EDITOR_ENJINE"])
+		{
+			return;
+		}
 		var props = AscCommon.g_specialPasteHelper.buttonInfo;
 		var presentation = editor.WordControl.m_oLogicDocument;
 		var drawingDocument = presentation.DrawingDocument;
@@ -2085,7 +2007,7 @@ background-repeat: no-repeat;\
 		}
 	};
 	asc_docs_api.prototype._autoSaveInner = function () {
-		if (this.WordControl.DemonstrationManager.Mode) {
+		if (this.WordControl.DemonstrationManager && this.WordControl.DemonstrationManager.Mode) {
 			return;
 		}
 
@@ -2099,7 +2021,7 @@ background-repeat: no-repeat;\
 		} else {
 			var _bIsWaitScheme = false;
 			if (this.WordControl.m_oDrawingDocument &&
-				!this.WordControl.m_oDrawingDocument.TransitionSlide.IsPlaying() && History.Points &&
+				(!this.WordControl.m_oDrawingDocument.TransitionSlide || !this.WordControl.m_oDrawingDocument.TransitionSlide.IsPlaying()) && History.Points &&
 				History.Index >= 0 && History.Index < History.Points.length) {
 				if ((_curTime - History.Points[History.Index].Time) < this.intervalWaitAutoSave) {
 					_bIsWaitScheme = true;
@@ -2120,15 +2042,14 @@ background-repeat: no-repeat;\
 		}
 	};
 	asc_docs_api.prototype._saveCheck = function() {
-		return !this.isLongAction() && !this.WordControl.DemonstrationManager.Mode;
+		return !this.isLongAction() && !(this.WordControl.DemonstrationManager && this.WordControl.DemonstrationManager.Mode);
 	};
 	asc_docs_api.prototype._haveOtherChanges = function () {
 		return AscCommon.CollaborativeEditing.Have_OtherChanges();
 	};
-	asc_docs_api.prototype.asc_DownloadAs               = function(typeFile, bIsDownloadEvent)
-	{//передаем число соответствующее своему формату.
-		var options = {downloadType : bIsDownloadEvent ? DownloadType.Download : DownloadType.None};
-		this._downloadAs(typeFile, c_oAscAsyncAction.DownloadAs, options);
+	asc_docs_api.prototype.asc_DownloadAs = function(options)
+	{
+		this.downloadAs(c_oAscAsyncAction.DownloadAs, options);
 	};
 	asc_docs_api.prototype.Resize                       = function()
 	{
@@ -2146,8 +2067,8 @@ background-repeat: no-repeat;\
 	};
 	/*
 	 idOption идентификатор дополнительного параметра, c_oAscAdvancedOptionsID.TXT.
-	 option - какие свойства применить, пока массив. для TXT объект asc_CTXTAdvancedOptions(codepage)
-	 exp:	asc_setAdvancedOptions(c_oAscAdvancedOptionsID.TXT, new Asc.asc_CCSVAdvancedOptions(1200) );
+	 option - какие свойства применить, пока массив. для TXT объект asc_CTextOptions(codepage)
+	 exp:	asc_setAdvancedOptions(c_oAscAdvancedOptionsID.TXT, new Asc.asc_CTextOptions(1200) );
 	 */
 	asc_docs_api.prototype.asc_setAdvancedOptions       = function(idOption, option)
 	{
@@ -2162,7 +2083,6 @@ background-repeat: no-repeat;\
 					"userid": this.documentUserId,
 					"format": this.documentFormat,
 					"c": "reopen",
-					"url": this.documentUrl,
 					"title": this.documentTitle,
 					"password": option.asc_getPassword(),
 					"nobase64": true
@@ -2320,7 +2240,7 @@ background-repeat: no-repeat;\
 		var _headers = [];
 		for (var i = 0; i < headers.length; i++)
 		{
-			_headers[i] = new CHeader(headers[i]);
+			_headers[i] = new Asc.CHeader(headers[i]);
 		}
 
 		this.sendEvent("asc_onReturnHeaders", _headers);
@@ -2342,7 +2262,9 @@ background-repeat: no-repeat;\
 		this.sync_SearchStartCallback();
 
 		if (null != this.WordControl.m_oLogicDocument)
-			this.WordControl.m_oLogicDocument.Search_Start(what);
+		{
+
+		}
 		else
 			this.WordControl.m_oDrawingDocument.m_oDocumentRenderer.StartSearch(what);
 	};
@@ -2365,10 +2287,21 @@ background-repeat: no-repeat;\
 
 		this.WordControl.m_oLogicDocument.Search_Stop();
 	};
-	asc_docs_api.prototype.findText             = function(text, isNext)
+
+	asc_docs_api.prototype.sync_ReplaceAllCallback = function(ReplaceCount, OverallCount)
+	{
+		this.sendEvent("asc_onReplaceAll", OverallCount, ReplaceCount);
+	};
+
+	asc_docs_api.prototype.sync_SearchEndCallback = function()
+	{
+		this.sendEvent("asc_onSearchEnd");
+	};
+
+	asc_docs_api.prototype.findText             = function(text, isNext, isMatchCase)
 	{
 
-		var SearchEngine = editor.WordControl.m_oLogicDocument.Search(text, {MatchCase : false});
+		var SearchEngine = editor.WordControl.m_oLogicDocument.Search(text, {MatchCase : isMatchCase});
 
 		var Id = this.WordControl.m_oLogicDocument.Search_GetId(isNext);
 
@@ -2379,6 +2312,41 @@ background-repeat: no-repeat;\
 
 		//return this.WordControl.m_oLogicDocument.findText(text, scanForward);
 	};
+
+	asc_docs_api.prototype.asc_replaceText = function(text, replaceWith, isReplaceAll, isMatchCase)
+	{
+		if (null == this.WordControl.m_oLogicDocument)
+			return;
+
+		this.WordControl.m_oLogicDocument.Search(text, {MatchCase : isMatchCase});
+
+		if (true === isReplaceAll)
+			this.WordControl.m_oLogicDocument.Search_Replace(replaceWith, true, -1);
+		else
+		{
+			var CurId      = this.WordControl.m_oLogicDocument.SearchEngine.CurId;
+			var bDirection = this.WordControl.m_oLogicDocument.SearchEngine.Direction;
+			if (-1 != CurId)
+				this.WordControl.m_oLogicDocument.Search_Replace(replaceWith, false, CurId);
+
+			var Id = this.WordControl.m_oLogicDocument.Search_GetId(bDirection);
+
+			if (null != Id)
+			{
+				this.WordControl.m_oLogicDocument.Search_Select(Id);
+				return true;
+			}
+			else
+			{
+				this.WordControl.m_oLogicDocument.Document_UpdateInterfaceState();
+				this.WordControl.m_oLogicDocument.Document_UpdateSelectionState();
+				this.WordControl.OnUpdateOverlay();
+			}
+
+			return false;
+		}
+	};
+
 
 	asc_docs_api.prototype.asc_searchEnabled = function(bIsEnabled)
 	{
@@ -2512,16 +2480,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype.FontSizeOut                = function()
 	{
 		this.WordControl.m_oLogicDocument.IncreaseDecreaseFontSize(false);
-	};
-
-	asc_docs_api.prototype.put_AlignBySelect = function(val)
-	{
-		this.bAlignBySelected = val;
-	};
-
-	asc_docs_api.prototype.get_AlignBySelect = function()
-	{
-		return this.bAlignBySelected;
 	};
 
 	/*callbacks*/
@@ -2878,7 +2836,7 @@ background-repeat: no-repeat;\
 				{
 					oFill.fill.asc_putUrl(image_url);
 				}
-				if (null != _image)
+				if (null != _image || window["NATIVE_EDITOR_ENJINE"])
 				{
 					oApi.WordControl.m_oLogicDocument.ShapeApply(prop);
 					if (bShapeTexture)
@@ -3063,7 +3021,7 @@ background-repeat: no-repeat;\
                         bg.bgPr.Fill.fill.RasterImageId = image_url; // erase documentUrl
                     }
 
-                    if (null != _image)
+                    if (null != _image || window["NATIVE_EDITOR_ENJINE"])
                     {
                         if (bg.bgPr.Fill != null && bg.bgPr.Fill.fill != null && bg.bgPr.Fill.fill.type == c_oAscFill.FILL_TYPE_BLIP)
                         {
@@ -3419,7 +3377,6 @@ background-repeat: no-repeat;\
 	};
 	asc_docs_api.prototype.sync_HeadersAndFootersPropCallback = function(hafProp)
 	{
-		this.SelectedObjectsStack[this.SelectedObjectsStack.length] = new asc_CSelectedObject(c_oAscTypeSelectElement.Header, new CHeaderProp(hafProp));
 	};
 
 	/*----------------------------------------------------------------*/
@@ -3934,12 +3891,121 @@ background-repeat: no-repeat;\
 		}
 	};
 
+	asc_docs_api.prototype.asc_addSlideNumber = function()
+	{
+		this.WordControl.m_oLogicDocument.addSlideNumber();
+	};
+	asc_docs_api.prototype.asc_addDateTime = function(oPr)
+	{
+
+		var sCheck = oPr.get_DateTimeExamples()[oPr.get_DateTime()], sTextForCheck = "";
+		if(typeof sCheck === "string" && sCheck.length > 0)
+		{
+			sTextForCheck += sCheck;
+		}
+		else
+		{
+			sCheck = oPr.get_CustomDateTime();
+			if(typeof sCheck === "string" && sCheck.length > 0)
+			{
+				sTextForCheck += sCheck;
+			}
+		}
+
+		if(sTextForCheck.length > 0)
+		{
+			AscFonts.FontPickerByCharacter.checkText(sTextForCheck, this, function() {
+				this.WordControl.m_oLogicDocument.addDateTime(oPr);
+			});
+		}
+		else
+		{
+			this.WordControl.m_oLogicDocument.addDateTime(oPr);
+		}
+	};
+	asc_docs_api.prototype.asc_setDefaultDateTimeFormat = function(aFormat)
+	{
+		window['AscCommonWord'] = window['AscCommonWord'] || {};
+		for(var key in aFormat)
+		{
+			window['AscCommonWord'].oDefaultDateTimeFormat[key] = aFormat[key];
+		}
+	};
+
+	asc_docs_api.prototype.asc_getHeaderFooterProperties = function()
+	{
+		if(this.WordControl && this.WordControl.m_oLogicDocument)
+		{
+			return this.WordControl.m_oLogicDocument.getHFProperties();
+		}
+		return null;
+	};
+
+	asc_docs_api.prototype.asc_setHeaderFooterProperties = function(oProps, bAll)
+	{
+		
+		if(oProps && this.WordControl && this.WordControl.m_oLogicDocument)
+		{
+			var sTextForCheck = "";
+			var sCheck;
+			var oSlide = oProps.get_Slide();
+			var oThis = this;
+			var sDateTime;
+			if(oSlide)
+			{
+				var oDateTime = oSlide.get_DateTime();
+				if(oDateTime)
+				{
+
+					sCheck = oDateTime.get_DateTimeExamples()[oDateTime.get_DateTime()];
+					if(typeof sCheck === "string" && sCheck.length > 0)
+					{
+						sTextForCheck += sCheck;
+					}
+					else
+					{
+						sCheck = oDateTime.get_CustomDateTime();
+						if(typeof sCheck === "string" && sCheck.length > 0)
+						{
+							sTextForCheck += sCheck;
+						}
+					}
+				}
+				sCheck = oSlide.get_Footer();
+				if(typeof sCheck === "string" && sCheck.length > 0)
+				{
+					sTextForCheck += sCheck;
+				}
+				sCheck = oSlide.get_Header();
+				if(typeof sCheck === "string" && sCheck.length > 0)
+				{
+					sTextForCheck += sCheck;
+				}
+			}
+			//TODO: check notes
+			if(sTextForCheck.length > 0)
+			{
+				AscFonts.FontPickerByCharacter.checkText(sTextForCheck, this, function() {
+					oThis.WordControl.m_oLogicDocument.setHFProperties(oProps, bAll);
+				});
+			}
+			else
+			{
+				
+				oThis.WordControl.m_oLogicDocument.setHFProperties(oProps, bAll);
+			}
+		}
+	};
+
+
 	asc_docs_api.prototype.asc_addOleObjectAction = function(sLocalUrl, sData, sApplicationId, fWidth, fHeight, nWidthPix, nHeightPix)
 	{
 		var _image = this.ImageLoader.LoadImage(AscCommon.getFullImageSrc2(sLocalUrl), 1);
 		if (null != _image)//картинка уже должна быть загружена
 		{
+            this.WordControl.m_oLogicDocument.StartAction(AscDFH.historydescription_Document_PasteHotKey);
 			this.WordControl.m_oLogicDocument.AddOleObject(fWidth, fHeight, nWidthPix, nHeightPix, sLocalUrl, sData, sApplicationId);
+            this.WordControl.m_oLogicDocument.FinalizeAction();
 		}
 	};
 
@@ -3947,8 +4013,10 @@ background-repeat: no-repeat;\
 	{
 		if (oOleObject)
 		{
+            this.WordControl.m_oLogicDocument.StartAction(AscDFH.historydescription_Document_PasteHotKey);
 			this.WordControl.m_oLogicDocument.EditOleObject(oOleObject, sData, sImageUrl, nPixWidth, nPixHeight);
 			this.WordControl.m_oLogicDocument.Recalculate();
+            this.WordControl.m_oLogicDocument.FinalizeAction();
 		}
 	};
 
@@ -3975,6 +4043,35 @@ background-repeat: no-repeat;\
         return this.WordControl.m_oLogicDocument.CallSignatureDblClickEvent(sGuid);
     };
     //-------------------------------------------------------
+
+
+
+	asc_docs_api.prototype.asc_canEditCrop = function()
+	{
+
+		return this.WordControl.m_oLogicDocument.canStartImageCrop();
+	};
+
+	asc_docs_api.prototype.asc_startEditCrop = function()
+	{
+		return this.WordControl.m_oLogicDocument.startImageCrop();
+	};
+
+	asc_docs_api.prototype.asc_endEditCrop = function()
+	{
+		return this.WordControl.m_oLogicDocument.endImageCrop();
+	};
+
+	asc_docs_api.prototype.asc_cropFit = function()
+	{
+		return this.WordControl.m_oLogicDocument.cropFit();
+	};
+
+	asc_docs_api.prototype.asc_cropFill = function()
+	{
+		return this.WordControl.m_oLogicDocument.cropFill();
+	};
+
 
 	asc_docs_api.prototype.AddTextArt = function(nStyle)
 	{
@@ -4016,7 +4113,7 @@ background-repeat: no-repeat;\
 			}
 		}
 	};
-	asc_docs_api.prototype.AddImageUrl  = function(url)
+	asc_docs_api.prototype.AddImageUrl  = function(url, imgProp, token)
 	{
 		if (g_oDocumentUrls.getLocal(url))
 		{
@@ -4030,7 +4127,7 @@ background-repeat: no-repeat;\
                 if (data && data[0])
                     t.AddImageUrlAction(data[0].url);
 
-            }, false);
+            }, false, undefined, token);
 		}
 	};
 
@@ -4145,18 +4242,25 @@ background-repeat: no-repeat;\
 	{
 		var ImagePr        = {};
 		ImagePr.lockAspect = obj.lockAspect;
-		ImagePr.Width      = null === obj.Width ? null : parseFloat(obj.Width);
-		ImagePr.Height     = null === obj.Height ? null : parseFloat(obj.Height);
+		ImagePr.Width      = null === obj.Width || undefined === obj.Width ? null : parseFloat(obj.Width);
+		ImagePr.Height     = null === obj.Height || undefined === obj.Height ? null : parseFloat(obj.Height);
 
 		ImagePr.title       = obj.title;
 		ImagePr.description = obj.description;
+		ImagePr.rot = obj.rot;
+		ImagePr.rotAdd = obj.rotAdd;
+		ImagePr.flipH = obj.flipH;
+		ImagePr.flipV = obj.flipV;
+		ImagePr.flipHInvert = obj.flipHInvert;
+		ImagePr.flipVInvert = obj.flipVInvert;
+		ImagePr.resetCrop = obj.resetCrop;
 
 		if (undefined != obj.Position)
 		{
 			ImagePr.Position =
 			{
-				X : null === obj.Position.X ? null : parseFloat(obj.Position.X),
-				Y : null === obj.Position.Y ? null : parseFloat(obj.Position.Y)
+				X : null === obj.Position.X || undefined === obj.Position.X ? null : parseFloat(obj.Position.X),
+				Y : null === obj.Position.Y || undefined === obj.Position.Y ? null : parseFloat(obj.Position.Y)
 			};
 		}
 		else
@@ -4166,7 +4270,11 @@ background-repeat: no-repeat;\
 
 		ImagePr.ImageUrl = obj.ImageUrl;
 
-
+		if (window["NATIVE_EDITOR_ENJINE"]) 
+		{
+		  this.WordControl.m_oLogicDocument.SetImageProps(ImagePr);
+		  return;
+		}
 		if (!AscCommon.isNullOrEmptyString(ImagePr.ImageUrl))
 		{
 			var sImageUrl = null;
@@ -4434,25 +4542,34 @@ background-repeat: no-repeat;\
 		this.sendEvent("asc_onSendThemeColors", colors, standart_colors);
 	};
 
-	asc_docs_api.prototype.ChangeColorScheme = function(index_scheme)
+	asc_docs_api.prototype.asc_GetCurrentColorSchemeName = function()
 	{
-		var scheme = AscCommon.getColorThemeByIndex(index_scheme);
+		if (null == this.WordControl.m_oLogicDocument)
+			return "";
+
+		var oTheme = this.WordControl.MasterLayouts.Theme;
+		var oClrScheme = oTheme && oTheme.themeElements && oTheme.themeElements.clrScheme;
+		if(oClrScheme && typeof oClrScheme.name === "string")
+		{
+			return oClrScheme.name;
+		}
+		return "";
+	};
+
+	asc_docs_api.prototype.ChangeColorScheme = function(sSchemeName)
+	{
+		var scheme = AscCommon.getColorSchemeByName(sSchemeName);
 		if (!scheme)
 		{
-			index_scheme -= AscCommon.g_oUserColorScheme.length;
-			if (null == this.WordControl.MasterLayouts)
-				return;
-
 			var theme = this.WordControl.MasterLayouts.Theme;
 			if (null == theme)
 				return;
-
-			if (index_scheme < 0 || index_scheme >= theme.extraClrSchemeLst.length)
-				return;
-
-			scheme = theme.extraClrSchemeLst[index_scheme].clrScheme;
+			scheme = theme.getExtraClrScheme(sSchemeName);
 		}
-
+		if(!scheme)
+		{
+			return;
+		}
 		this.WordControl.m_oLogicDocument.changeColorScheme(scheme);
 		this.WordControl.m_oDrawingDocument.CheckGuiControlColors();
 	};
@@ -4491,6 +4608,8 @@ background-repeat: no-repeat;\
 			this.m_sQuoteText = (undefined != obj.m_sQuoteText) ? obj.m_sQuoteText : null;
 			this.m_bSolved    = (undefined != obj.m_bSolved   ) ? obj.m_bSolved : false;
 			this.m_sUserName  = (undefined != obj.m_sUserName ) ? obj.m_sUserName : "";
+			this.m_sGuid      = (undefined != obj.m_sGuid     ) ? obj.m_sGuid : AscCommon.CreateGUID();
+			this.m_nTimeZoneBias= (undefined != obj.m_nTimeZoneBias) ? obj.m_nTimeZoneBias : null;
 			this.bDocument    = (undefined != obj.bDocument   ) ? obj.bDocument : false;
 			this.m_aReplies   = [];
 			if (undefined != obj.m_aReplies)
@@ -4512,6 +4631,8 @@ background-repeat: no-repeat;\
 			this.m_sQuoteText = null;
 			this.m_bSolved    = false;
 			this.m_sUserName  = "";
+			this.m_sGuid      = AscCommon.CreateGUID();
+			this.m_nTimeZoneBias =  null;
 			this.m_aReplies   = [];
 			this.bDocument    = false;
 		}
@@ -4532,6 +4653,7 @@ background-repeat: no-repeat;\
 	asc_CCommentData.prototype.asc_putTime         = function(v)
 	{
 		this.m_sTime = v;
+		this.m_nTimeZoneBias = new Date().getTimezoneOffset();
 	};
 	asc_CCommentData.prototype.asc_getOnlyOfficeTime         = function()
 	{
@@ -4556,6 +4678,22 @@ background-repeat: no-repeat;\
 	asc_CCommentData.prototype.asc_putUserName     = function(v)
 	{
 		this.m_sUserName = v;
+	};
+	asc_CCommentData.prototype.asc_getGuid     = function()
+	{
+		return this.m_sGuid;
+	};
+	asc_CCommentData.prototype.asc_putGuid     = function(v)
+	{
+		this.m_sGuid = v;
+	};
+	asc_CCommentData.prototype.asc_putTimeZoneBias     = function(v)
+	{
+		this.m_nTimeZoneBias = v;
+	};
+	asc_CCommentData.prototype.asc_getTimeZoneBias     = function()
+	{
+		return this.m_nTimeZoneBias;
 	};
 	asc_CCommentData.prototype.asc_getQuoteText    = function()
 	{
@@ -4741,6 +4879,33 @@ background-repeat: no-repeat;\
 		this.sendEvent("asc_onUnLockComment", Id);
 	};
 
+
+	asc_docs_api.prototype.goTo = function(action)
+	{
+		if (this.WordControl && this.WordControl.m_oLogicDocument && action)
+		{
+			switch (action["type"])
+			{
+				case "bookmark":
+				{
+					break;
+				}
+				case "comment":
+				{
+					var commentId = this.WordControl.m_oLogicDocument.GetCommentIdByGuid(action["data"]);
+					if (commentId) {
+						this.asc_selectComment(commentId);
+						this.asc_showComment(commentId);
+					}
+					break;
+				}
+				default:
+					break;
+			}
+		}
+	};
+
+
 	// работа с шрифтами
 	asc_docs_api.prototype.asyncFontsDocumentStartLoaded = function()
 	{
@@ -4809,7 +4974,7 @@ background-repeat: no-repeat;\
 				this.sync_StartAction(c_oAscAsyncActionType.BlockInteraction, c_oAscAsyncAction.LoadImage);
 			}
 
-			this.ImageLoader.LoadDocumentImages(this.pasteImageMap, false);
+			this.ImageLoader.LoadDocumentImages(this.pasteImageMap);
 			return;
 		}
 		else if (this.isSaveFonts_Images)
@@ -4824,7 +4989,7 @@ background-repeat: no-repeat;\
 				this.sync_StartAction(c_oAscAsyncActionType.Information, c_oAscAsyncAction.LoadImage);
 			}
 
-			this.ImageLoader.LoadDocumentImages(this.saveImageMap, false);
+			this.ImageLoader.LoadDocumentImages(this.saveImageMap);
 			return;
 		}
 
@@ -4851,7 +5016,7 @@ background-repeat: no-repeat;\
 		}
 
 		this.ImageLoader.bIsLoadDocumentFirst = true;
-		this.ImageLoader.LoadDocumentImages(_loader_object.ImageMap, true);
+		this.ImageLoader.LoadDocumentImages(_loader_object.ImageMap);
 	};
 	asc_docs_api.prototype.asyncImagesDocumentEndLoaded  = function()
 	{
@@ -4890,11 +5055,11 @@ background-repeat: no-repeat;\
 		else
 		{
 			this.ServerImagesWaitComplete = true;
-				this.OpenDocumentEndCallback();
+			this._openDocumentEndCallback();
 		}
 	};
 
-	asc_docs_api.prototype.OpenDocumentEndCallback = function()
+	asc_docs_api.prototype._openDocumentEndCallback = function()
 	{
 		if (this.isDocumentLoadComplete || !this.ServerImagesWaitComplete || !this.ServerIdWaitComplete ||
 			!this.WordControl || !this.WordControl.m_oLogicDocument)
@@ -4916,7 +5081,7 @@ background-repeat: no-repeat;\
                         {
                             AscCommon.EncryptionWorker.init();
                             if (!AscCommon.EncryptionWorker.isChangesHandled)
-                            	return AscCommon.EncryptionWorker.handleChanges(AscCommon.CollaborativeEditing.m_aChanges, this, this.OpenDocumentEndCallback);
+                            	return AscCommon.EncryptionWorker.handleChanges(AscCommon.CollaborativeEditing.m_aChanges, this, this._openDocumentEndCallback);
                         }
                         
 						this.isApplyChangesOnOpenEnabled = false;
@@ -4937,13 +5102,14 @@ background-repeat: no-repeat;\
 
 				presentation.DrawingDocument.OnEndRecalculate();
 
-
-				this.asc_registerCallback('asc_doubleClickOnChart', function(){
-					// next tick
-					setTimeout(function() {
-						window.editor.WordControl.onMouseUpMainSimple();
-					}, 0);
-				});
+				if(!window['IS_NATIVE_EDITOR']) {
+					this.asc_registerCallback('asc_doubleClickOnChart', function(){
+						// next tick
+						setTimeout(function() {
+							window.editor.WordControl.onMouseUpMainSimple();
+						}, 0);
+					});
+				}
 
 				if(!window["NATIVE_EDITOR_ENJINE"]){
 
@@ -4953,9 +5119,10 @@ background-repeat: no-repeat;\
 					this.WordControl.m_oLayoutDrawer.HeightMM = presentation.Height;
 					this.WordControl.m_oMasterDrawer.WidthMM  = presentation.Width;
 					this.WordControl.m_oMasterDrawer.HeightMM = presentation.Height;
-
-					this.WordControl.m_oLogicDocument.SendThemesThumbnails();
 				}
+                this.standartThemesStatus++;
+                if (2 < this.standartThemesStatus)
+                   this.WordControl.m_oLogicDocument.SendThemesThumbnails();
 
 				this.sendEvent("asc_onPresentationSize", presentation.Width, presentation.Height);
 
@@ -5023,6 +5190,8 @@ background-repeat: no-repeat;\
 
 		// Меняем тип состояния (на никакое)
 		this.advancedOptionsAction = AscCommon.c_oAscAdvancedOptionsAction.None;
+		var options = this.DocInfo && this.DocInfo.asc_getOptions();
+		this.goTo(options && options["action"]);
 	};
 
 
@@ -5054,6 +5223,44 @@ background-repeat: no-repeat;\
 		}
 	};
 
+
+	asc_docs_api.prototype.asc_AddVideo = function(sImageUrlLocal, sVideoUrl)
+	{
+		var oApi = this;
+		var sImageUrl = AscCommon.g_oDocumentUrls.getImageUrl(sImageUrlLocal);
+		this.ImageLoader.LoadImagesWithCallback([sImageUrl], function(){
+			var _image = oApi.ImageLoader.LoadImage(sImageUrl, 1);
+			if (!_image || !_image.Image)
+				return;
+
+			var oImageObject = {};
+			oImageObject.src = sImageUrl;
+			oImageObject.Image = {};
+			oImageObject.Image.width = _image.Image.width;
+			oImageObject.Image.height = _image.Image.height;
+			oImageObject.videoUrl = sVideoUrl;
+			oApi.WordControl.m_oLogicDocument.addImages([oImageObject]);
+		});
+	};
+	asc_docs_api.prototype.asc_AddAudio = function(sImageUrlLocal, sAudioUrl)
+	{
+		var oApi = this;
+        var sImageUrl = AscCommon.g_oDocumentUrls.getImageUrl(sImageUrlLocal);
+		this.ImageLoader.LoadImagesWithCallback([sImageUrl], function(){
+			var _image = oApi.ImageLoader.LoadImage(sImageUrl, 1);
+            if (!_image || !_image.Image)
+                return;
+
+			var oImageObject = {};
+			oImageObject.src = sImageUrl;
+			oImageObject.Image = {};
+			oImageObject.Image.width = 50;
+			oImageObject.Image.height = 50;
+			oImageObject.audioUrl = sAudioUrl;
+			oApi.WordControl.m_oLogicDocument.addImages([oImageObject]);
+		});
+	};
+
 	//----------------------------------------------------------------------------------------------------------------------
 	// Работаем с формулами
 	//----------------------------------------------------------------------------------------------------------------------
@@ -5062,7 +5269,13 @@ background-repeat: no-repeat;\
 		this.WordControl.m_oLogicDocument.Set_MathProps(MathProps);
 	};
 
-
+	asc_docs_api.prototype.asc_SetHFProps = function(HFProps, bAll)
+	{
+		if(this.WordControl && this.WordControl.m_oLogicDocument)
+		{
+			this.WordControl.m_oLogicDocument.setHFProperties(HFProps, bAll);
+		}
+	};
 
 	asc_docs_api.prototype.asyncFontEndLoaded = function(fontinfo)
 	{
@@ -5103,9 +5316,9 @@ background-repeat: no-repeat;\
 		}
 	};
 
-	asc_docs_api.prototype.openDocument = function(sData)
+	asc_docs_api.prototype.openDocument = function(file)
 	{
-		this.OpenDocument2(sData.url, sData.data);
+		this.OpenDocument2(file.url, file.data);
 		this.DocumentOrientation = (null == this.WordControl.m_oLogicDocument) ? true : !this.WordControl.m_oLogicDocument.Orientation;
 		this.sync_DocSizeCallback(AscCommon.Page_Width, AscCommon.Page_Height);
 		this.sync_PageOrientCallback(this.get_DocumentOrientation());
@@ -5126,6 +5339,17 @@ background-repeat: no-repeat;\
 
 	asc_docs_api.prototype.pre_Paste = function(_fonts, _images, callback)
 	{
+		if (undefined !== window["Native"] && undefined !== window["Native"]["GetImageUrl"])
+		{
+			callback();
+			return;
+		}
+
+		if(window['IS_NATIVE_EDITOR'])
+		{
+			callback();
+			return;
+		}
 		this.pasteCallback = callback;
 		this.pasteImageMap = _images;
 
@@ -5155,7 +5379,7 @@ background-repeat: no-repeat;\
 		if (this.isApplyChangesOnOpen)
 		{
 			this.isApplyChangesOnOpen = false;
-			this.OpenDocumentEndCallback();
+			this._openDocumentEndCallback();
 		}
 
 		this.WordControl.SlideDrawer.CheckRecalculateSlide();
@@ -5237,6 +5461,10 @@ background-repeat: no-repeat;\
 			this.WordControl.UpdateHorRulerBack(true);
 			this.WordControl.UpdateVerRulerBack(true);
 		}
+		else
+		{
+            this.tmpDocumentUnits = _units;
+		}
 	};
 
 	asc_docs_api.prototype.GoToHeader = function(pageNumber)
@@ -5271,7 +5499,7 @@ background-repeat: no-repeat;\
 	};
 	asc_docs_api.prototype.DeleteSlide    = function()
 	{
-		var _delete_array = this.WordControl.Thumbnails.GetSelectedArray();
+		var _delete_array = this.WordControl.m_oLogicDocument.GetSelectedSlides();
 
 		if (!this.IsSupportEmptyPresentation)
 		{
@@ -5543,9 +5771,34 @@ background-repeat: no-repeat;\
 			if(LogicDocument.Slides[LogicDocument.CurPage])
 			{
 				LogicDocument.DrawingDocument.Notes_OnRecalculate(LogicDocument.CurPage,LogicDocument.NotesWidth, LogicDocument.Slides[LogicDocument.CurPage].getNotesHeight());
-
 			}
         }
+    };
+
+    asc_docs_api.prototype._spellCheckRestart = function(word)
+    {
+		var LogicDocument = this.WordControl.m_oLogicDocument;
+		if (LogicDocument)
+		{
+			// TODO: сделать нормальный сброс слова
+			var oldWordStatus = LogicDocument.Spelling.Check_Word(word);
+			if (true !== oldWordStatus)
+			{
+				LogicDocument.Spelling.Add_Word(word);
+				LogicDocument.DrawingDocument.ClearCachePages();
+				LogicDocument.DrawingDocument.FirePaint();
+				if(LogicDocument.Slides[LogicDocument.CurPage])
+				{
+					LogicDocument.DrawingDocument.Notes_OnRecalculate(LogicDocument.CurPage,LogicDocument.NotesWidth, LogicDocument.Slides[LogicDocument.CurPage].getNotesHeight());
+				}
+				delete LogicDocument.Spelling.Words[word];
+			}
+		}
+    };
+    asc_docs_api.prototype.asc_spellCheckClearDictionary = function()
+    {
+        if (window["AscDesktopEditor"])
+            window["AscDesktopEditor"]["SpellCheck"]("{\"type\":\"clear\"}");
     };
 
     asc_docs_api.prototype.asc_setDefaultLanguage = function(Lang)
@@ -5581,18 +5834,6 @@ background-repeat: no-repeat;\
             if(_presentation.Slides[_presentation.CurPage] && _presentation.Slides[_presentation.CurPage].notes){
                 _drawing_document.Notes_OnRecalculate(_presentation.CurPage, _presentation.Slides[_presentation.CurPage].NotesWidth, _presentation.Slides[_presentation.CurPage].getNotesHeight());
             }
-        }
-    };
-
-    asc_docs_api.prototype.spellCheck = function(rdata)
-    {
-        // ToDo проверка на подключение
-        switch (rdata.type)
-        {
-            case "spell":
-            case "suggest":
-                this.SpellCheckApi.spellCheck(JSON.stringify(rdata));
-                break;
         }
     };
 
@@ -5941,7 +6182,7 @@ background-repeat: no-repeat;\
 		AscCommon.CollaborativeEditing.Set_GlobalLock(false);
 
 		// применение темы
-		var _array = this.WordControl.Thumbnails.GetSelectedArray();
+		var _array = this.WordControl.m_oLogicDocument.GetSelectedSlides();
 		this.WordControl.m_oLogicDocument.changeTheme(theme_load_info, (_array.length <= 1 && !this.bSelectedSlidesTheme) ? null : _array);
 		this.WordControl.ThemeGenerateThumbnails(theme_load_info.Master);
 		// меняем шаблоны в меню
@@ -5952,88 +6193,100 @@ background-repeat: no-repeat;\
 
 	asc_docs_api.prototype.ChangeLayout = function(layout_index)
 	{
-		var _array = this.WordControl.Thumbnails.GetSelectedArray();
+		var _array = this.WordControl.m_oLogicDocument.GetSelectedSlides();
 
 		var _master = this.WordControl.MasterLayouts;
 		this.WordControl.m_oLogicDocument.changeLayout(_array, this.WordControl.MasterLayouts, layout_index);
 	};
 
-	asc_docs_api.prototype.put_ShapesAlign        = function(type)
+	asc_docs_api.prototype.put_ShapesAlign = function(type, alignType)
 	{
+		if(!AscFormat.isRealNumber(alignType))
+		{
+			alignType = Asc.c_oAscObjectsAlignType.Slide;
+		}
 		switch (type)
 		{
 			case c_oAscAlignShapeType.ALIGN_LEFT:
 			{
-				this.shapes_alignLeft();
+				this.shapes_alignLeft(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_RIGHT:
 			{
-				this.shapes_alignRight();
+				this.shapes_alignRight(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_TOP:
 			{
-				this.shapes_alignTop();
+				this.shapes_alignTop(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_BOTTOM:
 			{
-				this.shapes_alignBottom();
+				this.shapes_alignBottom(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_CENTER:
 			{
-				this.shapes_alignCenter();
+				this.shapes_alignCenter(alignType);
 				break;
 			}
 			case c_oAscAlignShapeType.ALIGN_MIDDLE:
 			{
-				this.shapes_alignMiddle();
+				this.shapes_alignMiddle(alignType);
 				break;
 			}
 			default:
 				break;
 		}
 	};
-	asc_docs_api.prototype.DistributeHorizontally = function()
+	asc_docs_api.prototype.DistributeHorizontally = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.distributeHor();
+		if(!AscFormat.isRealNumber(alignType))
+		{
+			alignType = Asc.c_oAscObjectsAlignType.Slide;
+		}
+		this.WordControl.m_oLogicDocument.distributeHor(alignType);
 	};
-	asc_docs_api.prototype.DistributeVertically   = function()
+	asc_docs_api.prototype.DistributeVertically   = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.distributeVer();
+		if(!AscFormat.isRealNumber(alignType))
+		{
+			alignType = Asc.c_oAscObjectsAlignType.Slide;
+		}
+		this.WordControl.m_oLogicDocument.distributeVer(alignType);
 	};
-	asc_docs_api.prototype.shapes_alignLeft       = function()
+	asc_docs_api.prototype.shapes_alignLeft       = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignLeft();
-	};
-
-	asc_docs_api.prototype.shapes_alignRight = function()
-	{
-		this.WordControl.m_oLogicDocument.alignRight();
-	};
-
-	asc_docs_api.prototype.shapes_alignTop = function()
-	{
-		this.WordControl.m_oLogicDocument.alignTop();
-
+		this.WordControl.m_oLogicDocument.alignLeft(alignType);
 	};
 
-	asc_docs_api.prototype.shapes_alignBottom = function()
+	asc_docs_api.prototype.shapes_alignRight = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignBottom();
+		this.WordControl.m_oLogicDocument.alignRight(alignType);
+	};
+
+	asc_docs_api.prototype.shapes_alignTop = function(alignType)
+	{
+		this.WordControl.m_oLogicDocument.alignTop(alignType);
 
 	};
 
-	asc_docs_api.prototype.shapes_alignCenter = function()
+	asc_docs_api.prototype.shapes_alignBottom = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignCenter();
+		this.WordControl.m_oLogicDocument.alignBottom(alignType);
+
 	};
 
-	asc_docs_api.prototype.shapes_alignMiddle = function()
+	asc_docs_api.prototype.shapes_alignCenter = function(alignType)
 	{
-		this.WordControl.m_oLogicDocument.alignMiddle();
+		this.WordControl.m_oLogicDocument.alignCenter(alignType);
+	};
+
+	asc_docs_api.prototype.shapes_alignMiddle = function(alignType)
+	{
+		this.WordControl.m_oLogicDocument.alignMiddle(alignType);
 	};
 
 	asc_docs_api.prototype.shapes_bringToFront = function()
@@ -6083,6 +6336,12 @@ background-repeat: no-repeat;\
 			this.WordControl.DemonstrationManager.StartWaitReporter(div_id, slidestart_num, true);
 		else
 			this.WordControl.DemonstrationManager.Start(div_id, slidestart_num, true);
+
+        if (undefined !== this.EndShowMessage)
+        {
+            this.WordControl.DemonstrationManager.EndShowMessage = this.EndShowMessage;
+            this.EndShowMessage = undefined;
+        }
 	};
 
 	asc_docs_api.prototype.EndDemonstration = function(isNoUseFullScreen)
@@ -6291,10 +6550,17 @@ background-repeat: no-repeat;\
                 this.isCheckCryptoReporter = true;
         }
 
+        this.asc_registerCallback('asc_onHyperlinkClick', function(url){
+            if (url && window.editor.asc_getUrlType(url) > 0) {
+                window.open(url);
+            }
+        });
+
 		if (!this.WordControl)
 			return;
 
 		this.WordControl.reporterTranslates = this.reporterTranslates;
+        this.WordControl.DemonstrationManager.EndShowMessage = this.reporterTranslates[3];
 
 		var _button1 = document.getElementById("dem_id_reset");
 		var _button2 = document.getElementById("dem_id_end");
@@ -6490,7 +6756,7 @@ background-repeat: no-repeat;\
 			if (_cur < 0 || _cur >= _count)
 				return;
 
-            var aSelectedSlides = this.WordControl.Thumbnails.GetSelectedArray();
+            var aSelectedSlides = this.WordControl.m_oLogicDocument.GetSelectedSlides();
             for(var i = 0; i < aSelectedSlides.length; ++i)
             {
                 var _curSlide = this.WordControl.m_oLogicDocument.Slides[aSelectedSlides[i]];
@@ -6613,6 +6879,19 @@ background-repeat: no-repeat;\
 	{
 	};
 
+	asc_docs_api.prototype.asc_getSelectedDrawingObjectsCount = function()
+	{
+		if(!this.WordControl)
+		{
+			return 0;
+		}
+		if(!this.WordControl.m_oLogicDocument)
+		{
+			return 0;
+		}
+		return this.WordControl.m_oLogicDocument.getSelectedDrawingObjectsCount();
+	};
+
 	//-----------------------------------------------------------------
 	// События контекстного меню
 	//-----------------------------------------------------------------
@@ -6668,27 +6947,13 @@ background-repeat: no-repeat;\
 	{
 		if (opt_isPassword) {
 			if (this.asc_checkNeedCallback("asc_onAdvancedOptions")) {
-				this.sendEvent("asc_onAdvancedOptions", new AscCommon.asc_CAdvancedOptions(c_oAscAdvancedOptionsID.DRM), c_oAscAdvancedOptionsAction.Open);
+				this.sendEvent("asc_onAdvancedOptions", c_oAscAdvancedOptionsID.DRM);
 			} else {
 				this.sendEvent("asc_onError", c_oAscError.ID.ConvertationPassword, c_oAscError.Level.Critical);
 			}
 		}
 	};
 
-	asc_docs_api.prototype._onOpenCommand = function(data)
-	{
-		var t = this;
-		AscCommon.openFileCommand(data, this.documentUrlChanges, AscCommon.c_oSerFormat.Signature, function(error, result)
-		{
-			if (error || !result.bSerFormat)
-			{
-				var err = error ? c_oAscError.ID.Unknown : c_oAscError.ID.ConvertationOpenError;
-				t.sendEvent("asc_onError", err, c_oAscError.Level.Critical);
-				return;
-			}
-			t.onEndLoadFile(result);
-		});
-	};
 	asc_docs_api.prototype._onEndLoadSdk  = function()
 	{
 		AscCommon.baseEditorsApi.prototype._onEndLoadSdk.call(this);
@@ -6709,6 +6974,10 @@ background-repeat: no-repeat;\
 		this.CreateComponents();
 		this.WordControl.Init();
 
+        if (this.tmpFontRenderingMode)
+        {
+            this.SetFontRenderingMode(this.tmpFontRenderingMode);
+        }
 		if (this.tmpThemesPath)
 		{
 			this.SetThemesPath(this.tmpThemesPath);
@@ -6744,6 +7013,11 @@ background-repeat: no-repeat;\
 					break;
 			}
 		}
+        if (null != this.tmpDocumentUnits)
+        {
+            this.asc_SetDocumentUnits(this.tmpDocumentUnits);
+            this.tmpDocumentUnits = null;
+        }
 
 		this.asc_setViewMode(this.isViewMode);
 
@@ -6761,90 +7035,55 @@ background-repeat: no-repeat;\
 
         if (this.openFileCryptBinary)
         {
-            window.openFileCryptCallback(this.openFileCryptBinary);
-            this.openFileCryptBinary = null;
+            this.openFileCryptCallback(this.openFileCryptBinary);
         }
 	};
 
-	asc_docs_api.prototype._downloadAs = function(filetype, actionType, options)
+	asc_docs_api.prototype._downloadAs = function(actionType, options, oAdditionalData, dataContainer)
 	{
-		var isCloudCrypto = (window["AscDesktopEditor"] && (0 < window["AscDesktopEditor"]["CryptoMode"])) ? true : false;
-		var t = this;
-		if (!options)
+		var fileType = options.fileType;
+		if (c_oAscFileType.PDF === fileType || c_oAscFileType.PDFA === fileType)
 		{
-			options = {};
-		}
-		if (actionType)
-		{
-			this.sync_StartAction(c_oAscAsyncActionType.BlockInteraction, actionType);
-		}
-		var isNoBase64 = (typeof ArrayBuffer !== 'undefined') && !isCloudCrypto;
+			var isSelection = false;
+			if (options.advancedOptions && options.advancedOptions && (Asc.c_oAscPrintType.Selection === options.advancedOptions.asc_getPrintType()))
+				isSelection = true;
 
-		var dataContainer               = {data : null, part : null, index : 0, count : 0};
-		var command                     = "save";
-		var oAdditionalData             = {};
-		oAdditionalData["c"]            = command;
-		oAdditionalData["id"]           = this.documentId;
-		oAdditionalData["userid"]       = this.documentUserId;
-		oAdditionalData["jwt"]         = this.CoAuthoringApi.get_jwt();
-		oAdditionalData["outputformat"] = filetype;
-		oAdditionalData["title"]        = AscCommon.changeFileExtention(this.documentTitle, AscCommon.getExtentionByFormat(filetype), Asc.c_nMaxDownloadTitleLen);
-		oAdditionalData["savetype"]     = AscCommon.c_oAscSaveTypes.CompleteAll;
-		oAdditionalData["nobase64"]     = isNoBase64;
-		if (DownloadType.Print === options.downloadType)
-		{
-			oAdditionalData["inline"] = 1;
-		}
-		if (c_oAscFileType.PDF == filetype || c_oAscFileType.PDFA == filetype)
-		{
 			var dd             = this.WordControl.m_oDrawingDocument;
-			dataContainer.data = dd.ToRendererPart(isNoBase64);
+			dataContainer.data = dd.ToRendererPart(oAdditionalData["nobase64"], isSelection);
 		}
 		else
-			dataContainer.data = this.WordControl.SaveDocument(isNoBase64);
+			dataContainer.data = this.WordControl.SaveDocument(oAdditionalData["nobase64"]);
 
-        if (isCloudCrypto)
+        if (window.isCloudCryptoDownloadAs)
         {
-        	window["AscDesktopEditor"]["CryptoDownloadAs"](dataContainer.data, filetype);
+        	window["AscDesktopEditor"]["CryptoDownloadAs"](dataContainer.data, fileType);
+			return true;
+        }
+	};
+
+    asc_docs_api.prototype.SetFontRenderingMode         = function(mode)
+    {
+        if (!this.isLoadFullApi)
+        {
+            this.tmpFontRenderingMode = mode;
             return;
         }
 
-		var fCallback     = function(input)
-		{
-			var error = c_oAscError.ID.Unknown;
-			if (null != input && command == input["type"])
-			{
-				if ('ok' == input["status"])
-				{
-					var url = input["data"];
-					if (url)
-					{
-						error = c_oAscError.ID.No;
-						t.processSavedFile(url, options.downloadType);
-					}
-				}
-				else
-				{
-					error = mapAscServerErrorToAscError(parseInt(input["data"]),
-						AscCommon.c_oAscAdvancedOptionsAction.Save);
-				}
-			}
-			if (c_oAscError.ID.No != error)
-			{
-				t.sendEvent("asc_onError", error, c_oAscError.Level.NoCritical);
-			}
-			if (actionType)
-			{
-				t.sync_EndAction(c_oAscAsyncActionType.BlockInteraction, actionType);
-			}
-		};
-		this.fCurCallback = fCallback;
-		AscCommon.saveWithParts(function(fCallback1, oAdditionalData1, dataContainer1)
-		{
-			sendCommand(t, fCallback1, oAdditionalData1, dataContainer1);
-		}, fCallback, null, oAdditionalData, dataContainer);
-	};
+        if (c_oAscFontRenderingModeType.noHinting === mode)
+            AscCommon.g_fontManager.SetHintsProps(false, false);
+        else if (c_oAscFontRenderingModeType.hinting === mode)
+            AscCommon.g_fontManager.SetHintsProps(true, false);
+        else if (c_oAscFontRenderingModeType.hintingAndSubpixeling === mode)
+            AscCommon.g_fontManager.SetHintsProps(true, true);
 
+        if (AscCommon.g_fontManager2 !== undefined && AscCommon.g_fontManager2 !== null)
+            AscCommon.g_fontManager2.ClearFontsRasterCache();
+
+        this.WordControl.m_oDrawingDocument.ClearCachePages();
+
+        if (this.bInit_word_control)
+            this.WordControl.OnScroll();
+    };
 
 
 	asc_docs_api.prototype.asc_Recalculate = function(bIsUpdateInterface)
@@ -7100,7 +7339,7 @@ background-repeat: no-repeat;\
 	{
 	};
 
-	window["asc_docs_api"].prototype["asc_nativePrint"] = function(_printer, _page)
+	window["asc_docs_api"].prototype["asc_nativePrint"] = function(_printer, _page, _opt)
 	{
 		if (undefined === _printer && _page === undefined)
 		{
@@ -7108,6 +7347,8 @@ background-repeat: no-repeat;\
 			{
 				var _drawing_document = this.WordControl.m_oDrawingDocument;
 				var pagescount        = _drawing_document.SlidesCount;
+                if ((_opt & 0x01) == 0x01)
+                    pagescount = this.WordControl.Thumbnails.GetSelectedArray().length;
 
 				window["AscDesktopEditor"]["Print_Start"](this.DocumentUrl, pagescount, this.ThemeLoader.ThemesUrl, this.getCurrentPage());
 
@@ -7118,8 +7359,15 @@ background-repeat: no-repeat;\
 				this.ShowParaMarks                       = false;
 				oDocRenderer.IsNoDrawingEmptyPlaceholder = true;
 
+                pagescount = _drawing_document.SlidesCount;
 				for (var i = 0; i < pagescount; i++)
 				{
+					if ((_opt & 0x01) == 0x01)
+					{
+						if (!this.WordControl.Thumbnails.isSelectedPage(i))
+							continue;
+					}
+
 					oDocRenderer.Memory.Seek(0);
 					oDocRenderer.VectorMemoryForPrint.ClearNoAttack();
 
@@ -7181,6 +7429,51 @@ background-repeat: no-repeat;\
 		return _renderer.Memory.data;
 	};
 
+    window["asc_docs_api"].prototype["asc_nativeGetThemeThumbnail"] = function(params)
+    {
+        if (!this.WordControl.m_oLogicDocument ||
+            !this.WordControl.m_oLogicDocument.slideMasters ||
+            !this.WordControl.m_oLogicDocument.slideMasters[0] ||
+			!this.WordControl.m_oLogicDocument.slideMasters[0].Theme)
+		{
+			return null;
+		}
+
+		var _pres = this.WordControl.m_oLogicDocument;
+        var _master = this.WordControl.m_oLogicDocument.slideMasters[0];
+
+    	var _renderer                         = new AscCommon.CDocumentRenderer();
+        _renderer.InitPicker(AscCommon.g_oTextMeasurer.m_oManager);
+        _renderer.VectorMemoryForPrint        = new AscCommon.CMemory();
+        var _bOldShowMarks                    = this.ShowParaMarks;
+        this.ShowParaMarks                    = false;
+        _renderer.IsNoDrawingEmptyPlaceholder = true;
+
+        var pxW = 85; if (params && params.length && params[0]) pxW = params[0];
+        var pxH = 38; if (params && params.length && params[1]) pxH = params[1];
+        var mmW = pxW * AscCommon.g_dKoef_pix_to_mm;
+        var mmH = pxH * AscCommon.g_dKoef_pix_to_mm;
+
+        _renderer.BeginPage(mmW, mmH);
+        var oldEngine = window["NATIVE_EDITOR_ENJINE"];
+        window["NATIVE_EDITOR_ENJINE"] = undefined;
+        this.WordControl.m_oMasterDrawer.WidthMM = mmW;
+        this.WordControl.m_oMasterDrawer.HeightMM = mmH;
+        this.WordControl.m_oMasterDrawer.WidthPx = pxW;
+        this.WordControl.m_oMasterDrawer.HeightPx = pxH;
+        this.WordControl.m_oMasterDrawer.Draw2(_renderer, _master, undefined, undefined, params);
+        window["NATIVE_EDITOR_ENJINE"] = oldEngine;
+        _renderer.EndPage();
+
+        this.ShowParaMarks = _bOldShowMarks;
+
+        var objectRet = {};
+        objectRet["name"] = _master.Theme.name;
+        objectRet["data"] = _renderer.Memory.data;
+        objectRet["dataLen"] = _renderer.Memory.GetCurPosition();
+        return objectRet;
+    };
+
 	asc_docs_api.prototype.asc_OnHideContextMenu = function()
 	{
 		if (this.WordControl.MobileTouchManager)
@@ -7209,6 +7502,32 @@ background-repeat: no-repeat;\
 		return defaultSize;
 	};
 
+	asc_docs_api.prototype.asc_getAppProps = function()
+	{
+		return this.WordControl && this.WordControl.m_oLogicDocument && this.WordControl.m_oLogicDocument.App || null;
+	};
+
+	asc_docs_api.prototype.getInternalCoreProps = function()
+	{
+		return this.WordControl && this.WordControl.m_oLogicDocument && this.WordControl.m_oLogicDocument.Core;
+	};
+
+	asc_docs_api.prototype.asc_setCoreProps = function(oProps)
+	{
+		var oCore = this.getInternalCoreProps();
+		if(!oCore)
+		{
+			return;
+		}
+		var oLogicDocument = this.WordControl.m_oLogicDocument;
+		if(false === oLogicDocument.Document_Is_SelectionLocked(AscCommon.changestype_CorePr, null))
+		{
+			oLogicDocument.StartAction(AscDFH.historydescription_SetCoreproperties);
+			oCore.setProps(oProps);
+			oLogicDocument.FinalizeAction(true);
+			this.WordControl.m_oLogicDocument.Document_UpdateInterfaceState();
+		}
+	};
 	//-------------------------------------------------------------export---------------------------------------------------
 	window['Asc']                                                 = window['Asc'] || {};
 	window['AscCommonSlide']                                      = window['AscCommonSlide'] || {};
@@ -7245,6 +7564,9 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['SetInterfaceDrawImagePlaceTextArt']   = asc_docs_api.prototype.SetInterfaceDrawImagePlaceTextArt;
 	asc_docs_api.prototype['OpenDocument2']                       = asc_docs_api.prototype.OpenDocument2;
 	asc_docs_api.prototype['asc_getDocumentName']                 = asc_docs_api.prototype.asc_getDocumentName;
+	asc_docs_api.prototype['asc_getAppProps']                     = asc_docs_api.prototype.asc_getAppProps;
+	asc_docs_api.prototype['asc_getCoreProps']                    = asc_docs_api.prototype.asc_getCoreProps;
+	asc_docs_api.prototype['asc_setCoreProps']                    = asc_docs_api.prototype.asc_setCoreProps;
 	asc_docs_api.prototype['asc_registerCallback']                = asc_docs_api.prototype.asc_registerCallback;
 	asc_docs_api.prototype['asc_unregisterCallback']              = asc_docs_api.prototype.asc_unregisterCallback;
 	asc_docs_api.prototype['asc_checkNeedCallback']               = asc_docs_api.prototype.asc_checkNeedCallback;
@@ -7263,7 +7585,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['sync_VerticalTextAlign']              = asc_docs_api.prototype.sync_VerticalTextAlign;
 	asc_docs_api.prototype['sync_Vert']                           = asc_docs_api.prototype.sync_Vert;
 	asc_docs_api.prototype['UpdateParagraphProp']                 = asc_docs_api.prototype.UpdateParagraphProp;
-	asc_docs_api.prototype['asc_Print']                           = asc_docs_api.prototype.asc_Print;
 	asc_docs_api.prototype['Undo']                                = asc_docs_api.prototype.Undo;
 	asc_docs_api.prototype['Redo']                                = asc_docs_api.prototype.Redo;
 	asc_docs_api.prototype['Copy']                                = asc_docs_api.prototype.Copy;
@@ -7280,6 +7601,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['Help']                                = asc_docs_api.prototype.Help;
 	asc_docs_api.prototype['startGetDocInfo']                     = asc_docs_api.prototype.startGetDocInfo;
 	asc_docs_api.prototype['asc_setAdvancedOptions']              = asc_docs_api.prototype.asc_setAdvancedOptions;
+    asc_docs_api.prototype['SetFontRenderingMode']                = asc_docs_api.prototype.SetFontRenderingMode;
 	asc_docs_api.prototype['stopGetDocInfo']                      = asc_docs_api.prototype.stopGetDocInfo;
 	asc_docs_api.prototype['sync_DocInfoCallback']                = asc_docs_api.prototype.sync_DocInfoCallback;
 	asc_docs_api.prototype['sync_GetDocInfoStartCallback']        = asc_docs_api.prototype.sync_GetDocInfoStartCallback;
@@ -7315,6 +7637,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['findText']                            = asc_docs_api.prototype.findText;
 	asc_docs_api.prototype['asc_searchEnabled']                   = asc_docs_api.prototype.asc_searchEnabled;
 	asc_docs_api.prototype['asc_findText']                        = asc_docs_api.prototype.asc_findText;
+	asc_docs_api.prototype['asc_replaceText']                     = asc_docs_api.prototype.asc_replaceText;
 	asc_docs_api.prototype['sync_SearchFoundCallback']            = asc_docs_api.prototype.sync_SearchFoundCallback;
 	asc_docs_api.prototype['sync_SearchStartCallback']            = asc_docs_api.prototype.sync_SearchStartCallback;
 	asc_docs_api.prototype['sync_SearchStopCallback']             = asc_docs_api.prototype.sync_SearchStopCallback;
@@ -7330,8 +7653,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['put_LineSpacingBeforeAfter']          = asc_docs_api.prototype.put_LineSpacingBeforeAfter;
 	asc_docs_api.prototype['FontSizeIn']                          = asc_docs_api.prototype.FontSizeIn;
 	asc_docs_api.prototype['FontSizeOut']                         = asc_docs_api.prototype.FontSizeOut;
-	asc_docs_api.prototype['put_AlignBySelect']                   = asc_docs_api.prototype.put_AlignBySelect;
-	asc_docs_api.prototype['get_AlignBySelect']                   = asc_docs_api.prototype.get_AlignBySelect;
 	asc_docs_api.prototype['sync_BoldCallBack']                   = asc_docs_api.prototype.sync_BoldCallBack;
 	asc_docs_api.prototype['sync_ItalicCallBack']                 = asc_docs_api.prototype.sync_ItalicCallBack;
 	asc_docs_api.prototype['sync_UnderlineCallBack']              = asc_docs_api.prototype.sync_UnderlineCallBack;
@@ -7340,7 +7661,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['sync_TextPrFontSizeCallBack']         = asc_docs_api.prototype.sync_TextPrFontSizeCallBack;
 	asc_docs_api.prototype['sync_PrLineSpacingCallBack']          = asc_docs_api.prototype.sync_PrLineSpacingCallBack;
 	asc_docs_api.prototype['sync_InitEditorThemes']               = asc_docs_api.prototype.sync_InitEditorThemes;
-	asc_docs_api.prototype['sync_InitEditorTableStyles']          = asc_docs_api.prototype.sync_InitEditorTableStyles;
 	asc_docs_api.prototype['paraApply']                           = asc_docs_api.prototype.paraApply;
 	asc_docs_api.prototype['put_PrAlign']                         = asc_docs_api.prototype.put_PrAlign;
 	asc_docs_api.prototype['put_TextPrBaseline']                  = asc_docs_api.prototype.put_TextPrBaseline;
@@ -7435,6 +7755,11 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_addImage']                        = asc_docs_api.prototype.asc_addImage;
 	asc_docs_api.prototype['StartAddShape']                       = asc_docs_api.prototype.StartAddShape;
 	asc_docs_api.prototype['AddTextArt']                          = asc_docs_api.prototype.AddTextArt;
+	asc_docs_api.prototype['asc_canEditCrop']                     = asc_docs_api.prototype.asc_canEditCrop;
+	asc_docs_api.prototype['asc_startEditCrop']                   = asc_docs_api.prototype.asc_startEditCrop;
+	asc_docs_api.prototype['asc_endEditCrop']                     = asc_docs_api.prototype.asc_endEditCrop;
+	asc_docs_api.prototype['asc_cropFit']                         = asc_docs_api.prototype.asc_cropFit;
+	asc_docs_api.prototype['asc_cropFill']                        = asc_docs_api.prototype.asc_cropFill;
 	asc_docs_api.prototype['canGroup']                            = asc_docs_api.prototype.canGroup;
 	asc_docs_api.prototype['canUnGroup']                          = asc_docs_api.prototype.canUnGroup;
 	asc_docs_api.prototype['AddImageUrl']                         = asc_docs_api.prototype.AddImageUrl;
@@ -7466,6 +7791,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['sync_countPagesCallback']             = asc_docs_api.prototype.sync_countPagesCallback;
 	asc_docs_api.prototype['sync_currentPageCallback']            = asc_docs_api.prototype.sync_currentPageCallback;
 	asc_docs_api.prototype['sync_SendThemeColors']                = asc_docs_api.prototype.sync_SendThemeColors;
+	asc_docs_api.prototype['asc_GetCurrentColorSchemeName']       = asc_docs_api.prototype.asc_GetCurrentColorSchemeName;
 	asc_docs_api.prototype['ChangeColorScheme']                   = asc_docs_api.prototype.ChangeColorScheme;
 	asc_docs_api.prototype['asc_enableKeyEvents']                 = asc_docs_api.prototype.asc_enableKeyEvents;
 	asc_docs_api.prototype['asc_showComments']                    = asc_docs_api.prototype.asc_showComments;
@@ -7488,7 +7814,6 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['sync_UnLockComment']                  = asc_docs_api.prototype.sync_UnLockComment;
 	asc_docs_api.prototype['GenerateStyles']                      = asc_docs_api.prototype.GenerateStyles;
 	asc_docs_api.prototype['asyncFontsDocumentEndLoaded']         = asc_docs_api.prototype.asyncFontsDocumentEndLoaded;
-	asc_docs_api.prototype['asyncImagesDocumentEndLoaded']        = asc_docs_api.prototype.asyncImagesDocumentEndLoaded;
 	asc_docs_api.prototype['asyncFontEndLoaded']                  = asc_docs_api.prototype.asyncFontEndLoaded;
 	asc_docs_api.prototype['asyncImageEndLoaded']                 = asc_docs_api.prototype.asyncImageEndLoaded;
 	asc_docs_api.prototype['get_PresentationWidth']               = asc_docs_api.prototype.get_PresentationWidth;
@@ -7539,6 +7864,8 @@ background-repeat: no-repeat;\
     asc_docs_api.prototype['sync_SpellCheckVariantsFound']        = asc_docs_api.prototype.sync_SpellCheckVariantsFound;
     asc_docs_api.prototype['asc_replaceMisspelledWord']           = asc_docs_api.prototype.asc_replaceMisspelledWord;
     asc_docs_api.prototype['asc_ignoreMisspelledWord']            = asc_docs_api.prototype.asc_ignoreMisspelledWord;
+    asc_docs_api.prototype['asc_spellCheckAddToDictionary']       = asc_docs_api.prototype.asc_spellCheckAddToDictionary;
+    asc_docs_api.prototype['asc_spellCheckClearDictionary']       = asc_docs_api.prototype.asc_spellCheckClearDictionary;
     asc_docs_api.prototype['asc_setDefaultLanguage']              = asc_docs_api.prototype.asc_setDefaultLanguage;
     asc_docs_api.prototype['asc_getDefaultLanguage']              = asc_docs_api.prototype.asc_getDefaultLanguage;
     asc_docs_api.prototype['asc_getKeyboardLanguage']             = asc_docs_api.prototype.asc_getKeyboardLanguage;
@@ -7599,6 +7926,7 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype['asc_getChartPreviews']                = asc_docs_api.prototype.asc_getChartPreviews;
 	asc_docs_api.prototype['asc_getTextArtPreviews']              = asc_docs_api.prototype.asc_getTextArtPreviews;
 	asc_docs_api.prototype['sync_closeChartEditor']               = asc_docs_api.prototype.sync_closeChartEditor;
+	asc_docs_api.prototype['asc_getSelectedDrawingObjectsCount']  = asc_docs_api.prototype.asc_getSelectedDrawingObjectsCount;
 	asc_docs_api.prototype['asc_stopSaving']                      = asc_docs_api.prototype.asc_stopSaving;
 	asc_docs_api.prototype['asc_continueSaving']                  = asc_docs_api.prototype.asc_continueSaving;
 	asc_docs_api.prototype['asc_undoAllChanges']                  = asc_docs_api.prototype.asc_undoAllChanges;
@@ -7617,14 +7945,23 @@ background-repeat: no-repeat;\
 	asc_docs_api.prototype["asc_pluginButtonClick"]               = asc_docs_api.prototype.asc_pluginButtonClick;
 	asc_docs_api.prototype["asc_pluginEnableMouseEvents"]         = asc_docs_api.prototype.asc_pluginEnableMouseEvents;
 
-	asc_docs_api.prototype["asc_addOleObject"]                    = asc_docs_api.prototype.asc_addOleObject;
-	asc_docs_api.prototype["asc_editOleObject"]                   = asc_docs_api.prototype.asc_editOleObject;
+	asc_docs_api.prototype["asc_addSlideNumber"]                  = asc_docs_api.prototype.asc_addSlideNumber;
+	asc_docs_api.prototype["asc_addDateTime"]                     = asc_docs_api.prototype.asc_addDateTime;
+	asc_docs_api.prototype["asc_setDefaultDateTimeFormat"]        = asc_docs_api.prototype.asc_setDefaultDateTimeFormat;
+	asc_docs_api.prototype["asc_getHeaderFooterProperties"]       = asc_docs_api.prototype.asc_getHeaderFooterProperties;
+	asc_docs_api.prototype["asc_setHeaderFooterProperties"]       = asc_docs_api.prototype.asc_setHeaderFooterProperties;
+
 	asc_docs_api.prototype["asc_startEditCurrentOleObject"]       = asc_docs_api.prototype.asc_startEditCurrentOleObject;
 	asc_docs_api.prototype["asc_InputClearKeyboardElement"]       = asc_docs_api.prototype.asc_InputClearKeyboardElement;
 
 	asc_docs_api.prototype["asc_getCurrentFocusObject"]           = asc_docs_api.prototype.asc_getCurrentFocusObject;
 	asc_docs_api.prototype["asc_AddMath"]           			  = asc_docs_api.prototype.asc_AddMath;
 	asc_docs_api.prototype["asc_SetMathProps"]           		  = asc_docs_api.prototype.asc_SetMathProps;
+
+	asc_docs_api.prototype["asc_AddVideo"]           		  = asc_docs_api.prototype.asc_AddVideo;
+	asc_docs_api.prototype["asc_AddAudio"]           		  = asc_docs_api.prototype.asc_AddAudio;
+
+    asc_docs_api.prototype['sendEvent']								= asc_docs_api.prototype.sendEvent;
 
 	// mobile
 	asc_docs_api.prototype["asc_GetDefaultTableStyles"]           	= asc_docs_api.prototype.asc_GetDefaultTableStyles;
@@ -7675,6 +8012,10 @@ background-repeat: no-repeat;\
 	asc_CCommentData.prototype['asc_putUserId']       = asc_CCommentData.prototype.asc_putUserId;
 	asc_CCommentData.prototype['asc_getUserName']     = asc_CCommentData.prototype.asc_getUserName;
 	asc_CCommentData.prototype['asc_putUserName']     = asc_CCommentData.prototype.asc_putUserName;
+	asc_CCommentData.prototype['asc_getGuid']         = asc_CCommentData.prototype.asc_getGuid;
+	asc_CCommentData.prototype['asc_putGuid']         = asc_CCommentData.prototype.asc_putGuid;
+	asc_CCommentData.prototype['asc_getTimeZoneBias'] = asc_CCommentData.prototype.asc_getTimeZoneBias;
+	asc_CCommentData.prototype['asc_putTimeZoneBias'] = asc_CCommentData.prototype.asc_putTimeZoneBias;
 	asc_CCommentData.prototype['asc_getQuoteText']    = asc_CCommentData.prototype.asc_getQuoteText;
 	asc_CCommentData.prototype['asc_putQuoteText']    = asc_CCommentData.prototype.asc_putQuoteText;
 	asc_CCommentData.prototype['asc_getSolved']       = asc_CCommentData.prototype.asc_getSolved;

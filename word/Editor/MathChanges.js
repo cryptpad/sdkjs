@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -36,6 +36,10 @@
  * Date: 09.11.2016
  * Time: 15:52
  */
+
+// TODO: Изменения с добавлениями строк и колонок матриц работают не совсем корректно:
+//       Нужно либо сделать специальнный класс CContentChanges для случая прямоугольной матрицы,
+//       либо навсегда запретить одновременное редактирования колонок и строк одной и той же матрицы
 
 AscDFH.changesFactory[AscDFH.historyitem_MathContent_AddItem]      = CChangesMathContentAddItem;
 AscDFH.changesFactory[AscDFH.historyitem_MathContent_RemoveItem]   = CChangesMathContentRemoveItem;
@@ -1454,6 +1458,11 @@ CChangesMathMatrixAddRow.prototype.Merge = function(oChange)
 	// TODO: Это изменение надо целиком переделать
 	return true;
 };
+CChangesMathMatrixAddRow.prototype.Load = function()
+{
+	var nPos = this.UseArray ? this.PosArray[0] : this.Pos;
+	this.Class.raw_AddRow(nPos, this.Items);
+};
 /**
  * @constructor
  * @extends {AscDFH.CChangesBase}
@@ -1551,6 +1560,11 @@ CChangesMathMatrixRemoveRow.prototype.Merge = function(oChange)
 	// TODO: Это изменение надо целиком переделать
 	return true;
 };
+CChangesMathMatrixRemoveRow.prototype.Load = function()
+{
+	var nPos = this.UseArray ? this.PosArray[0] : this.Pos;
+	this.Class.raw_RemoveRow(nPos, this.Items.length);
+};
 /**
  * @constructor
  * @extends {AscDFH.CChangesBase}
@@ -1587,6 +1601,11 @@ CChangesMathMatrixAddColumn.prototype.Merge = function(oChange)
 {
 	// TODO: Это изменение надо целиком переделать
 	return true;
+};
+CChangesMathMatrixAddColumn.prototype.Load = function()
+{
+	var nPos = this.UseArray ? this.PosArray[0] : this.Pos;
+	this.Class.raw_AddColumn(nPos, this.Items);
 };
 /**
  * @constructor
@@ -1625,6 +1644,12 @@ CChangesMathMatrixRemoveColumn.prototype.Merge = function(oChange)
 	// TODO: Это изменение надо целиком переделать
 	return true;
 };
+CChangesMathMatrixRemoveColumn.prototype.Load = function()
+{
+	var nPos = this.UseArray ? this.PosArray[0] : this.Pos;
+	this.Class.raw_RemoveColumn(nPos, this.Items.length);
+};
+
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseLongProperty}
@@ -1849,7 +1874,3 @@ CChangesMathDegreeSubSupType.prototype.private_SetValue = function(Value)
 {
 	this.Class.raw_SetType(Value);
 };
-
-
-
-

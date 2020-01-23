@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -127,6 +127,10 @@ CCollaborativeEditing.prototype.Send_Changes = function(IsUserSave, AdditionalIn
 					editor.WordControl.m_oLogicDocument.DrawingDocument.UnLockSlide(Class2.num);
 				}
 			}
+            if(Class instanceof AscCommon.CCore)
+            {
+                editor.sendEvent("asc_onLockCore", false);
+            }
 
 			var check_obj = null;
 			if(Class.getObjectType)
@@ -172,14 +176,16 @@ CCollaborativeEditing.prototype.Send_Changes = function(IsUserSave, AdditionalIn
 							};
 						}
 						else {
-							check_obj =
-							{
-								"type": c_oAscLockTypeElemPresentation.Object,
-								"slideId": Class.Parent.slide.deleteLock.Get_Id(),
-								"objId": Class.Get_Id(),
-								"guid": Class.Get_Id()
-							};
-							map[Class.Parent.slide.num] = true;
+                            if(Class.Parent.slide.deleteLock){
+                                check_obj =
+                                {
+                                    "type": c_oAscLockTypeElemPresentation.Object,
+                                    "slideId": Class.Parent.slide.deleteLock.Get_Id(),
+                                    "objId": Class.Get_Id(),
+                                    "guid": Class.Get_Id()
+                                };
+                                map[Class.Parent.slide.num] = true;
+                            }
 						}
 					}
 				}
@@ -308,6 +314,10 @@ CCollaborativeEditing.prototype.Release_Locks = function()
                 {
                     map_redraw[Class.Parent.slide.num] = true;
                 }
+            }
+            if(Class instanceof AscCommon.CCore)
+            {
+                editor.sendEvent("asc_onLockCore", false);
             }
         }
         else if ( AscCommon.locktype_Other3 === CurLockType )

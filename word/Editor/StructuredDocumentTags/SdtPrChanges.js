@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -90,6 +90,11 @@ CChangesSdtPrAlias.prototype.private_SetValue = function(Value)
 {
 	this.Class.Pr.Alias = Value;
 };
+CChangesSdtPrAlias.prototype.IsNeedRecalculate = function()
+{
+	return false;
+};
+
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseLongProperty}
@@ -104,6 +109,10 @@ CChangesSdtPrId.prototype.Type = AscDFH.historyitem_SdtPr_Id;
 CChangesSdtPrId.prototype.private_SetValue = function(Value)
 {
 	this.Class.Pr.Id = Value;
+};
+CChangesSdtPrId.prototype.IsNeedRecalculate = function()
+{
+	return false;
 };
 /**
  * @constructor
@@ -120,6 +129,10 @@ CChangesSdtPrTag.prototype.private_SetValue = function(Value)
 {
 	this.Class.Pr.Tag = Value;
 };
+CChangesSdtPrTag.prototype.IsNeedRecalculate = function()
+{
+	return false;
+};
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseLongProperty}
@@ -135,6 +148,10 @@ CChangesSdtPrLabel.prototype.private_SetValue = function(Value)
 {
 	this.Class.Pr.Label = Value;
 };
+CChangesSdtPrLabel.prototype.IsNeedRecalculate = function()
+{
+	return false;
+};
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseLongProperty}
@@ -149,6 +166,10 @@ CChangesSdtPrLock.prototype.Type = AscDFH.historyitem_SdtPr_Lock;
 CChangesSdtPrLock.prototype.private_SetValue = function(Value)
 {
 	this.Class.Pr.Lock = Value;
+};
+CChangesSdtPrLock.prototype.IsNeedRecalculate = function()
+{
+	return false;
 };
 /**
  * @constructor
@@ -283,6 +304,10 @@ CChangesSdtPrDocPartObj.prototype.ReadFromBinary = function(Reader)
 	if (nFlags & 32)
 		this.New.Unique = Reader.GetBool();
 };
+CChangesSdtPrDocPartObj.prototype.IsNeedRecalculate = function()
+{
+	return false;
+};
 /**
  * @constructor
  * @extends {AscDFH.CChangesBaseLongProperty}
@@ -297,6 +322,10 @@ CChangesSdtPrAppearance.prototype.Type = AscDFH.historyitem_SdtPr_Appearance;
 CChangesSdtPrAppearance.prototype.private_SetValue = function(Value)
 {
 	this.Class.Pr.Appearance = Value;
+};
+CChangesSdtPrAppearance.prototype.IsNeedRecalculate = function()
+{
+	return false;
 };
 /**
  * @constructor
@@ -316,4 +345,8 @@ CChangesSdtPrColor.prototype.private_SetValue = function(Value)
 CChangesSdtPrColor.prototype.private_CreateObject = function()
 {
 	return new CDocumentColor();
+};
+CChangesSdtPrColor.prototype.IsNeedRecalculate = function()
+{
+	return false;
 };

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -33,6 +33,8 @@
 "use strict";
 CTable.prototype.Recalculate_Page = function(PageIndex)
 {
+	this.SetIsRecalculated(true);
+
 	if (0 === PageIndex)
 	{
 		// TODO: Внутри функции private_RecalculateBorders происходит персчет метрик каждой ячейки, это надо бы
@@ -244,6 +246,7 @@ CTable.prototype.private_RecalculateGrid = function()
 
     var PctWidth = this.private_RecalculatePercentWidth();
     var MinWidth = this.Internal_Get_TableMinWidth();
+
     var TableW = 0;
     if (tblwidth_Auto === TablePr.TableW.Type)
     {
@@ -261,10 +264,12 @@ CTable.prototype.private_RecalculateGrid = function()
         }
         else
         {
-            TableW = TablePr.TableW.W
+            TableW = TablePr.TableW.W;
         }
 
-        if (TableW < MinWidth)
+        if (0.001 > TableW)
+        	TableW = 0;
+        else if (TableW < MinWidth)
             TableW = MinWidth;
     }
 
@@ -681,14 +686,25 @@ CTable.prototype.private_RecalculateGrid = function()
         }
 
         // 3. Рассчитаем максимально допустимую ширину под всю таблицу
-        var PageFields = this.Parent.Get_ColumnFields ? this.Parent.Get_ColumnFields(this.Get_Index(), this.Get_AbsoluteColumn(this.PageNum)) : this.Parent.Get_PageFields(this.private_GetRelativePageIndex(this.PageNum));
-        var MaxTableW = PageFields.XLimit - PageFields.X - TablePr.TableInd;
-        if ( null === TopTable )
-            MaxTableW += LeftMargin + RightMargin; // Добавляем левый маргин первой ячейки + правый маргин правой ячейки для верхних таблиц
 
-        var TableSpacing = this.Content[0].Get_CellSpacing();
-        if ( null != TableSpacing )
-            MaxTableW += 2 * TableSpacing;
+		var PageFields;
+
+		// Случай, когда таблица лежит внутри CBlockLevelSdt
+		if (this.Parent instanceof CDocumentContent && this.LogicDocument && this.Parent.IsBlockLevelSdtContent() && this.Parent.GetTopDocumentContent() === this.LogicDocument && !this.Parent.IsTableCellContent())
+		{
+			var nTopIndex = -1;
+			var arrPos    = this.GetDocumentPositionFromObject();
+			if (arrPos.length > 0)
+				nTopIndex = arrPos[0].Position;
+
+			if (-1 !== nTopIndex)
+				PageFields = this.LogicDocument.Get_ColumnFields(nTopIndex, this.Get_AbsoluteColumn(this.PageNum));
+		}
+
+		if (!PageFields)
+			PageFields = this.Parent.Get_ColumnFields ? this.Parent.Get_ColumnFields(this.Get_Index(), this.Get_AbsoluteColumn(this.PageNum)) : this.Parent.Get_PageFields(this.private_GetRelativePageIndex(this.PageNum));
+
+		var MaxTableW = PageFields.XLimit - PageFields.X - TablePr.TableInd - this.GetTableOffsetCorrection() + this.GetRightTableOffsetCorrection();
 
         // 4. Рассчитаем желаемую ширину таблицы таблицы
         // Цифра 2 означает добавочная разница
@@ -1605,26 +1621,29 @@ CTable.prototype.private_RecalculatePositionX = function(CurPage)
     {
         if (0 === CurPage)
         {
-            var OffsetCorrection_Left  = 0;
-            var OffsetCorrection_Right = 0;
+        	var oSectPr = this.Get_SectPr();
+        	if (oSectPr)
+			{
+				PageFields.Y      = oSectPr.PageMargins.Top;
+				PageFields.YLimit = oSectPr.PageSize.H - oSectPr.PageMargins.Bottom;
+				PageFields.X      = oSectPr.PageMargins.Left;
+				PageFields.XLimit = oSectPr.PageSize.W - oSectPr.PageMargins.Right;
+			}
 
-            if (true !== this.bPresentation)
-            {
-                OffsetCorrection_Left  = this.GetTableOffsetCorrection();
-                OffsetCorrection_Right = this.GetRightTableOffsetCorrection();
-            }
+            var OffsetCorrection_Left  = this.GetTableOffsetCorrection();
+            var OffsetCorrection_Right = this.GetRightTableOffsetCorrection();
 
-            this.X = this.X_origin + this.GetTableOffsetCorrection();
-            this.AnchorPosition.Set_X(this.TableSumGrid[this.TableSumGrid.length - 1], this.X_origin, PageFields.X + OffsetCorrection_Left, PageFields.XLimit + OffsetCorrection_Right, LD_PageLimits.XLimit, PageLimits.X - OffsetCorrection_Left, PageLimits.XLimit + OffsetCorrection_Right);
+            this.X = this.X_origin + OffsetCorrection_Left;
+            this.AnchorPosition.Set_X(this.TableSumGrid[this.TableSumGrid.length - 1], this.X_origin, PageFields.X + OffsetCorrection_Left, PageFields.XLimit + OffsetCorrection_Right, LD_PageLimits.XLimit, PageLimits.X + OffsetCorrection_Left, PageLimits.XLimit + OffsetCorrection_Right);
 
             // Непонятно по какой причине, но Word для плавающих таблиц добаляется значение TableInd
 			this.AnchorPosition.Calculate_X(this.PositionH.RelativeFrom, this.PositionH.Align, this.PositionH.Value);
 			this.AnchorPosition.CalcX += TablePr.TableInd;
 
             this.X        = this.AnchorPosition.CalcX;
-            this.X_origin = this.X - this.GetTableOffsetCorrection();
+            this.X_origin = this.X - OffsetCorrection_Left;
 
-            if (undefined != this.PositionH_Old)
+			if (undefined != this.PositionH_Old)
             {
                 // Восстанови старые значения, чтобы в историю изменений все нормально записалось
                 this.PositionH.RelativeFrom = this.PositionH_Old.RelativeFrom;
@@ -1637,7 +1656,7 @@ CTable.prototype.private_RecalculatePositionX = function(CurPage)
 
                 // На всякий случай пересчитаем заново координату
 				this.X        = this.AnchorPosition.Calculate_X(this.PositionH.RelativeFrom, this.PositionH.Align, this.PositionH.Value);
-                this.X_origin = this.X - this.GetTableOffsetCorrection();
+                this.X_origin = this.X - OffsetCorrection_Left;
 
                 this.PositionH_Old = undefined;
             }
@@ -1731,7 +1750,9 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
         AscCommon.g_oTableId.m_bTurnOff = true;
         AscCommon.History.TurnOff();
 
-        var aContentDrawings = [];
+		this.LogicDocument.RecalcTableHeader = true;
+
+		var aContentDrawings = [];
         for ( var Index = 0; Index < this.HeaderInfo.Count; Index++ )
         {
             HeaderPage.Rows[Index] = this.Content[Index].Copy(this);
@@ -2131,6 +2152,8 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
                 }
             }
         }
+
+		this.LogicDocument.RecalcTableHeader = false;
     }
     else
     {
@@ -2312,6 +2335,8 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 
             Cell.Temp.Y = Y_content_start;
 
+            // Сохраняем ссылку на исходную ячейку
+			var oOriginCell = Cell;
             if ( VMergeCount > 1 )
             {
                 CurGridCol += GridSpan;
@@ -2320,11 +2345,17 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
             }
             else
             {
-                // Возьмем верхнюю ячейку теккущего объединения
+                // Возьмем верхнюю ячейку текущего объединения
                 if ( vmerge_Restart != Vmerge )
                 {
                     Cell = this.Internal_Get_StartMergedCell( CurRow, CurGridCol, GridSpan );
                     CellMar = Cell.GetMargins();
+
+                    var oTempRow         = Cell.GetRow();
+					var oTempCellMetrics = oTempRow.GetCellInfo(Cell.GetIndex());
+
+					X_content_start = Page.X + oTempCellMetrics.X_content_start;
+					X_content_end   = Page.X + oTempCellMetrics.X_content_end;
 
                     Y_content_start = Cell.Temp.Y + CellMar.Top.W;
                 }
@@ -2360,7 +2391,7 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
                         ShiftDy   = -Cell.Content.Pages[0].Y + Y_content_start;
 
 						// Если в ячейке есть ссылки на сноски, тогда такую ячейку нужно пересчитывать
-						var arrFootnotes = Cell.Content.Get_FootnotesList(null, null);
+						var arrFootnotes = Cell.Content.GetFootnotesList(null, null);
 						if (arrFootnotes && arrFootnotes.length > 0)
 							bCanShift = false;
                     }
@@ -2429,11 +2460,11 @@ CTable.prototype.private_RecalculatePage = function(CurPage)
 
 				nFootnotesHeight     = nCurFootnotesHeight;
 				nResetFootnotesIndex = CurRow;
-				Y                    = arrSavedY[Cell.Row.Index];
-				TableHeight          = arrSavedTableHeight[Cell.Row.Index];
-				oFootnotes.LoadRecalculateObject(nPageAbs, nColumnAbs, arrFootnotesObject[Cell.Row.Index]);
+				Y                    = arrSavedY[oOriginCell.Row.Index];
+				TableHeight          = arrSavedTableHeight[oOriginCell.Row.Index];
+				oFootnotes.LoadRecalculateObject(nPageAbs, nColumnAbs, arrFootnotesObject[oOriginCell.Row.Index]);
 
-				CurRow = Cell.Row.Index - 1;
+				CurRow = oOriginCell.Row.Index - 1;
 
 				bFootnoteBreak = true;
 				break;

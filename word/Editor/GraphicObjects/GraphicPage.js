@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -69,12 +69,16 @@ CGraphicPage.prototype =
     getCompatibilityMode: function () {
         return editor.WordControl.m_oLogicDocument.GetCompatibilityMode();
     },
+
     addFloatTable: function(table)
     {
         for(var i = 0; i < this.flowTables.length; ++i)
         {
-            if(this.flowTables[i] === table)
-                return;
+            if(this.flowTables[i].GetElement() === table.GetElement() && this.flowTables[i].GetPage() === table.GetPage())
+			{
+				this.flowTables[i] = table;
+				return;
+			}
         }
         this.flowTables.push(table);
     },
@@ -83,11 +87,13 @@ CGraphicPage.prototype =
     {
 
         var drawing_array, need_sort = true;
-        if(object.parent.Is_Inline()){
+
+        var Type = object.parent.getDrawingArrayType();
+        if(Type === DRAWING_ARRAY_TYPE_INLINE){
             drawing_array = this.inlineObjects;
             need_sort = false;
         }
-        else if(object.parent.behindDoc == true && (this.getCompatibilityMode() < document_compatibility_mode_Word15 || object.parent.wrappingType === WRAPPING_TYPE_NONE)){
+        else if(Type === DRAWING_ARRAY_TYPE_BEHIND){
             drawing_array  = this.behindDocObjects;
         }
         else{
@@ -189,10 +195,12 @@ CGraphicPage.prototype =
         var oDrawing = AscCommon.g_oTableId.Get_ById(id);
         if(oDrawing){
             var drawing_array;
-            if(oDrawing.Is_Inline()){
+
+            var Type = oDrawing.getDrawingArrayType();
+            if(Type === DRAWING_ARRAY_TYPE_INLINE){
                 drawing_array = this.inlineObjects;
             }
-            else if(oDrawing.behindDoc === true  && (this.getCompatibilityMode() < document_compatibility_mode_Word15 || oDrawing.wrappingType === WRAPPING_TYPE_NONE)){
+            else if(Type === DRAWING_ARRAY_TYPE_BEHIND){
                 drawing_array = this.behindDocObjects;
             }
             else{
@@ -312,10 +320,12 @@ CGraphicPage.prototype =
     },
 
     addGraphicObject: function(graphicObject){
-        if(graphicObject.Is_Inline()){
+
+        var Type = graphicObject.getDrawingArrayType();
+        if(Type === DRAWING_ARRAY_TYPE_INLINE){
             this.inlineObjects.push(graphicObject);
         }
-        else if(graphicObject.behindDoc === true && (this.getCompatibilityMode() < document_compatibility_mode_Word15 || graphicObject.wrappingType === WRAPPING_TYPE_NONE)){
+        else if(Type === DRAWING_ARRAY_TYPE_BEHIND){
             this.behindDocObjects.push(graphicObject);
             this.behindDocObjects.sort(ComparisonByZIndexSimpleParent);
         }

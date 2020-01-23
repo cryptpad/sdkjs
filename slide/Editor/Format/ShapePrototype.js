@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -116,53 +116,6 @@ CShape.prototype.getDrawingObjectsController = function()
 };
 
 
-function addToDrawings(worksheet, graphic, position, lockByDefault)
-{
-
-    var drawingObjects;
-    var wsViews = Asc["editor"].wb.wsViews;
-    for(var i = 0; i < wsViews.length; ++i)
-    {
-        if(wsViews[i] && wsViews[i].model === worksheet)
-        {
-            drawingObjects = wsViews[i].objectRender;
-            break;
-        }
-    }
-    if(!drawingObjects)
-    {
-        drawingObjects = new AscFormat.DrawingObjects();
-    }
-
-    var drawingObject = drawingObjects.createDrawingObject();
-    drawingObject.graphicObject = graphic;
-    graphic.setDrawingBase(drawingObject);
-    if(!worksheet)
-        return;
-    var ret, aObjects = worksheet.Drawings;
-    if (AscFormat.isRealNumber(position)) {
-        aObjects.splice(position, 0, drawingObject);
-        ret = position;
-    }
-    else {
-        ret = aObjects.length;
-        aObjects.push(drawingObject);
-    }
-
-    /*if ( lockByDefault ) {
-     _this.objectLocker.reset();
-     _this.objectLocker.addObjectId(drawingObject.graphicObject.Id);
-     _this.objectLocker.checkObjects( function(result) {} );
-     }
-     worksheet.setSelectionShape(true);  */
-    if(graphic.recalcTransform)
-    {
-        graphic.recalcTransform();
-        graphic.addToRecalculate();
-    }
-    return ret;
-}
-
 CShape.prototype.addToDrawingObjects =  function(pos)
 {
     if(this.parent && this.parent.cSld && this.parent.cSld.spTree)
@@ -177,7 +130,10 @@ CShape.prototype.deleteDrawingBase = function(bCheckPlaceholder)
     if(this.parent && this.parent.cSld && this.parent.cSld.spTree)
     {
         var pos = this.parent.removeFromSpTreeById(this.Id);
-        if(bCheckPlaceholder && this.isPlaceholder() && !this.isEmptyPlaceholder())
+        var phType = this.getPlaceholderType();
+        if(bCheckPlaceholder && this.isPlaceholder() && !this.isEmptyPlaceholder()
+            && phType !== AscFormat.phType_hdr && phType !== AscFormat.phType_ftr
+            && phType !== AscFormat.phType_sldNum && phType !== AscFormat.phType_dt )
         {
             var hierarchy = this.getHierarchy();
             if(hierarchy[0])
@@ -460,6 +416,15 @@ CShape.prototype.getParentObjects = function ()
                     notes: this.parent
                 }
             }
+            case AscDFH.historyitem_type_RelSizeAnchor:
+            case AscDFH.historyitem_type_AbsSizeAnchor:
+            {
+                if(this.parent.parent)
+                {
+                    return this.parent.parent.getParentObjects()
+                }
+                break;
+            }
         }
     }
     return { slide: null, layout: null, master: null, theme: null};
@@ -483,6 +448,11 @@ CShape.prototype.recalculate = function ()
     var check_slide_placeholder = !this.isPlaceholder() || (this.parent && (this.parent.getObjectType() === AscDFH.historyitem_type_Slide));
     AscFormat.ExecuteNoHistory(function(){
 
+        var bRecalcShadow = this.recalcInfo.recalculateBrush ||
+            this.recalcInfo.recalculatePen ||
+            this.recalcInfo.recalculateTransform ||
+            this.recalcInfo.recalculateGeometry ||
+            this.recalcInfo.recalculateBounds;
         if (this.recalcInfo.recalculateBrush) {
             this.recalculateBrush();
             this.recalcInfo.recalculateBrush = false;
@@ -521,7 +491,12 @@ CShape.prototype.recalculate = function ()
             this.recalculateBounds();
             this.recalcInfo.recalculateBounds = false;
         }
+        if(bRecalcShadow)
+        {
+            this.recalculateShdw();
+        }
 
+        this.clearCropObject();
     }, this, []);
 };
 CShape.prototype.recalculateBounds = function()
@@ -710,7 +685,7 @@ CShape.prototype.recalculateContent2 = function()
                 if(!content.Content[0].Pr.DefaultRunPr){
                     content.Content[0].Pr.DefaultRunPr = new AscCommonWord.CTextPr();
                 }
-                content.Content[0].Pr.DefaultRunPr.Merge(content_.Content[0].Get_FirstRunPr());
+                content.Content[0].Pr.DefaultRunPr.Merge(content_.Content[0].GetFirstRunPr());
             }
             content.Set_StartPage(0);
             content.Reset(0, 0, w, 20000);
@@ -796,7 +771,7 @@ CShape.prototype.getIsSingleBody = function(x, y)
 };
 
 CShape.prototype.Set_CurrentElement = function(bUpdate, pageIndex){
-    if(this.parent){
+    if(this.parent && this.parent.graphicObjects){
         var drawing_objects = this.parent.graphicObjects;
         drawing_objects.resetSelection(true);
         if(this.group){
@@ -880,5 +855,4 @@ CShape.prototype.OnContentReDraw = function(){
     //--------------------------------------------------------export----------------------------------------------------
     window['AscFormat'] = window['AscFormat'] || {};
     window['AscFormat'].G_O_DEFAULT_COLOR_MAP = G_O_DEFAULT_COLOR_MAP;
-    window['AscFormat'].addToDrawings = addToDrawings;
 })(window);

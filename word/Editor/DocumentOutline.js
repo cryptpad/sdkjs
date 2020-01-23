@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -231,10 +231,20 @@ CDocumentOutline.prototype.GetText = function(nIndex)
 	if (nIndex < 0 || nIndex >= this.Elements.length)
 		return "";
 
-	if (!this.Elements[nIndex].Paragraph)
+	var oParagraph = this.Elements[nIndex].Paragraph;
+	if (!oParagraph)
 		return "";
 
-	return this.Elements[nIndex].Paragraph.GetText();
+	var sText = oParagraph.GetText();
+
+	if (oParagraph.IsNumberedNumbering())
+	{
+		var sNumText = oParagraph.GetNumberingText();
+		if (sNumText !== "")
+			sText = sNumText + " " + sText;
+	}
+
+	return sText;
 };
 CDocumentOutline.prototype.GetLevel = function(nIndex)
 {
@@ -308,7 +318,7 @@ CDocumentOutline.prototype.private_PromoteDemote = function(nIndex, isPromote)
 			CheckType : AscCommon.changestype_Paragraph_Properties
 		}))
 	{
-		AscCommon.History.Create_NewPoint(AscDFH.historydescription_Document_ChangeOutlineLevel);
+		this.LogicDocument.StartAction(AscDFH.historydescription_Document_ChangeOutlineLevel);
 
 		for (var nPos = 0, nCount = arrParagraphs.length; nPos < nCount; ++nPos)
 		{
@@ -325,7 +335,8 @@ CDocumentOutline.prototype.private_PromoteDemote = function(nIndex, isPromote)
 		}
 
 		this.LogicDocument.Recalculate();
-		this.LogicDocument.Document_UpdateInterfaceState();
+		this.LogicDocument.UpdateInterface();
+		this.LogicDocument.FinalizeAction();
 	}
 };
 CDocumentOutline.prototype.InsertHeader = function(nIndex, isBefore)
@@ -340,7 +351,7 @@ CDocumentOutline.prototype.InsertHeader = function(nIndex, isBefore)
 	// так что проверка нужна все равно, но без типа изменения.
 	if (false === this.LogicDocument.Document_Is_SelectionLocked(changestype_None))
 	{
-		this.LogicDocument.Create_NewHistoryPoint(AscDFH.historydescription_Document_AddElementToOutline);
+		this.LogicDocument.StartAction(AscDFH.historydescription_Document_AddElementToOutline);
 
 		var oParagraph = new Paragraph(this.LogicDocument.GetDrawingDocument(), this.LogicDocument);
 		oParagraph.SetParagraphStyleById(this.LogicDocument.GetStyles().GetDefaultHeading(nLevel));
@@ -349,6 +360,7 @@ CDocumentOutline.prototype.InsertHeader = function(nIndex, isBefore)
 
 		oParagraph.MoveCursorToStartPos(false);
 		oParagraph.Document_SetThisElementCurrent(true);
+		this.LogicDocument.FinalizeAction();
 	}
 };
 CDocumentOutline.prototype.InsertSubHeader = function(nIndex)
@@ -366,7 +378,7 @@ CDocumentOutline.prototype.InsertSubHeader = function(nIndex)
 	// так что проверка нужна все равно, но без типа изменения.
 	if (false === this.LogicDocument.Document_Is_SelectionLocked(changestype_None))
 	{
-		this.LogicDocument.Create_NewHistoryPoint(AscDFH.historydescription_Document_AddElementToOutline);
+		this.LogicDocument.StartAction(AscDFH.historydescription_Document_AddElementToOutline);
 
 		var oParagraph = new Paragraph(this.LogicDocument.GetDrawingDocument(), this.LogicDocument);
 		oParagraph.SetParagraphStyleById(this.LogicDocument.GetStyles().GetDefaultHeading(nLevel + 1));
@@ -375,6 +387,7 @@ CDocumentOutline.prototype.InsertSubHeader = function(nIndex)
 
 		oParagraph.MoveCursorToStartPos(false);
 		oParagraph.Document_SetThisElementCurrent(true);
+		this.LogicDocument.FinalizeAction();
 	}
 };
 CDocumentOutline.prototype.private_GetPositionForInsertHeaderBefore = function(nIndex)

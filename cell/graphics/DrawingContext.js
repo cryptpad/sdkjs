@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -255,55 +255,6 @@
 	};
 
 	/**
-	 * Creates font properties
-	 * -----------------------------------------------------------------------------
-	 * @constructor
-	 * @param {String} family     Font family
-	 * @param {Number} size       Font size
-	 * @param {Boolean} bold      Font style - bold
-	 * @param {Boolean} italic    Font style - italic
-	 * @param {String} underline  Font style - type of underline
-	 * @param {String} strikeout  Font style - type of strike-out
-	 *
-	 * @memberOf Asc
-	 */
-	function FontProperties(family, size, bold, italic, underline, strikeout) {
-		this.FontFamily = {Name: family, Index: -1, Angle: 0};
-		this.FontSize = size;
-		this.Bold = !!bold;
-		this.Italic = !!italic;
-		this.Underline = underline;
-		this.Strikeout = strikeout;
-
-		return this;
-	}
-
-	/**
-	 * Assigns font preperties from another object
-	 * @param {FontProperties} font
-	 */
-	FontProperties.prototype.copyFrom = function (font) {
-		this.FontFamily.Name = font.FontFamily.Name;
-		this.FontFamily.Index = font.FontFamily.Index;
-		this.FontSize = font.FontSize;
-		this.Bold = font.Bold;
-		this.Italic = font.Italic;
-		this.Underline = font.Underline;
-		this.Strikeout = font.Strikeout;
-	};
-
-	/** @return {FontProperties} */
-	FontProperties.prototype.clone = function () {
-		return new FontProperties(this.FontFamily.Name, this.FontSize, this.Bold, this.Italic, this.Underline, this.Strikeout);
-	};
-
-	FontProperties.prototype.isEqual = function (font) {
-		return font !== undefined && this.FontFamily.Name.toLowerCase() === font.FontFamily.Name.toLowerCase() &&
-			this.FontSize === font.FontSize && this.Bold === font.Bold && this.Italic === font.Italic;
-	};
-
-
-	/**
 	 * Creates text metrics
 	 * -----------------------------------------------------------------------------
 	 * @constructor
@@ -401,6 +352,14 @@
 	NativeContext.prototype.lineTo = function (x, y) {
 		this.ctx["PD_PathLineTo"](x, y);
 	};
+	NativeContext.prototype.lineHor = function (x1, y, x2) {
+		this.ctx["PD_PathMoveTo"](x1, y);
+		this.ctx["PD_PathLineTo"](x2, y);
+	};
+	NativeContext.prototype.lineVer = function (x, y1, y2) {
+		this.ctx["PD_PathMoveTo"](x, y1);
+		this.ctx["PD_PathLineTo"](x, y2);
+	};
 	NativeContext.prototype.bezierCurveTo = function (x1, y1, x2, y2, x3, y3) {
 		this.ctx["PD_PathCurveTo"](x1, y1, x2, y2, x3, y3);
 	};
@@ -455,7 +414,7 @@
 	 * @param {Object} settings  Settings : {
 	 *   canvas : HTMLElement
 	 *   units  : units (0=px, 1=pt, 2=in, 3=mm)
-	 *   font   : FontProperties
+	 *   font   : AscCommonExcel.Font
 	 * }
 	 *
 	 * @memberOf Asc
@@ -468,24 +427,9 @@
 
 		this.ppiX = 96;
 		this.ppiY = 96;
+		this.scaleFactor = 1;
+		this._ppiInit();
 
-		if (window["IS_NATIVE_EDITOR"]) {
-			this.ppiX = this.ppiY = window["native"]["GetDeviceDPI"]();
-
-			//this.deviceDPI = window["native"]["GetDeviceDPI"]();
-			//this.deviceScale = window["native"]["GetDeviceScale"]();
-
-			//this.ppiX = 96.0 * this.deviceScale * (96.0 / (this.deviceDPI * this.deviceScale));
-			//this.ppiY = 96.0 * this.deviceScale * (96.0 / (this.deviceDPI * this.deviceScale));
-
-			//this.ppiX = this.deviceDPI; //96.0 * this.deviceScale * (96.0 / (this.deviceDPI * this.deviceScale));
-			//this.ppiY = this.deviceDPI; //96.0 * this.deviceScale * (96.0 / (this.deviceDPI * this.deviceScale));
-		} else {
-			if (AscCommon.AscBrowser.isRetina) {
-				this.ppiX = AscCommon.AscBrowser.convertToRetinaValue(this.ppiX, true);
-				this.ppiY = AscCommon.AscBrowser.convertToRetinaValue(this.ppiY, true);
-			}
-		}
 		this.LastFontOriginInfo = undefined;
 
 		this._mct = new Matrix();  // units transform
@@ -494,8 +438,6 @@
 		this._mft = new Matrix();  // full transform
 		this._mift = new Matrix();  // inverted full transform
 		this._im = new Matrix();
-
-		this.scaleFactor = 1;
 
 		this.units = 3/*mm*/;
 		this.changeUnits(undefined !== settings.units ? settings.units : this.units);
@@ -509,7 +451,7 @@
 			throw "Can not set graphics in DrawingContext";
 		}
 
-		/** @type FontProperties */
+		/** @type AscCommonExcel.Font */
 		this.font = undefined !== settings.font ? settings.font : null;
 		// Font должен быть передан (он общий для всех DrawingContext, т.к. может возникнуть ситуация как в баге http://bugzilla.onlyoffice.com/show_bug.cgi?id=19784)
 		if (null === this.font) {
@@ -520,6 +462,21 @@
 		this.fillColor = new AscCommon.CColor(255, 255, 255);
 		return this;
 	}
+
+	DrawingContext.prototype._ppiInit = function () {
+		this.ppiX = 96;
+		this.ppiY = 96;
+		this.scaleFactor = 1;
+
+		if (window["IS_NATIVE_EDITOR"]) {
+			this.ppiX = this.ppiY = window["native"]["GetDeviceDPI"]();
+		} else {
+			if (AscCommon.AscBrowser.isRetina) {
+				this.ppiX = AscCommon.AscBrowser.convertToRetinaValue(this.ppiX, true);
+				this.ppiY = AscCommon.AscBrowser.convertToRetinaValue(this.ppiY, true);
+			}
+		}
+	};
 
 	/**
 	 * Returns width of drawing context in current units
@@ -650,8 +607,9 @@
 	 * @param {Number} factor
 	 */
 	DrawingContext.prototype.changeZoom = function (factor) {
-		if (factor <= 0) {
-			throw "Scale factor must be >= 0";
+		if (!factor) {
+			factor = this.scaleFactor;
+			this._ppiInit();
 		}
 
 		factor = asc_round(factor * 1000) / 1000;
@@ -892,12 +850,8 @@
 		return this.font.clone();
 	};
 
-	DrawingContext.prototype.getFontFamily = function () {
-		return this.font.FontFamily.Name;
-	};
-
 	DrawingContext.prototype.getFontSize = function () {
-		return this.font.FontSize;
+		return this.font.getSize();
 	};
 
 	/**
@@ -927,15 +881,10 @@
 			res.nat_y1 = face[1];
 			res.nat_y2 = face[2];
 		} else {
-			face = fm.m_pFont.m_pFace;
-			res.nat_scale = face.header.Units_Per_EM;
-			if (face.os2) {
-				res.nat_y1 = face.os2.usWinAscent;
-				res.nat_y2 = -face.os2.usWinDescent;
-			} else {
-				res.nat_y1 = face.header.yMax;
-				res.nat_y2 = face.header.yMin;
-			}
+			var faceMetrics = fm.m_pFont.cellGetMetrics();
+            res.nat_scale = faceMetrics[0];
+            res.nat_y1 = faceMetrics[1];
+            res.nat_y2 = faceMetrics[2];
 		}
 
 		res.nat_y1 *= r2;
@@ -952,18 +901,18 @@
 	DrawingContext.prototype.setFont = function (font, angle) {
 
 		var r;
-		this.font.copyFrom(font);
+		this.font.assign(font);
 
 		if (window["IS_NATIVE_EDITOR"]) {
-			this.font.FontSize = this.font.FontSize * 2.54 * this.scaleFactor * 96.0 / 72.0;
-			// this.font.FontSize = this.font.FontSize * 2.54 * this.scaleFactor * this.deviceDPI / 72.0;
+			this.font.fs = this.font.getSize() * this.scaleFactor * 96.0 / 25.4;
+			// this.font.fs = this.font.getSize() * 2.54 * this.scaleFactor * this.deviceDPI / 72.0;
 
-			// this.font.FontSize = this.font.FontSize * 2.54 * this.scaleFactor *
+			// this.font.fs = this.font.getSize() * 2.54 * this.scaleFactor *
 			//     this.deviceScale * this.deviceDPI / 96.0 * (96.0 / (this.deviceDPI * this.deviceScale));
 		}
 
-		var italic = true === this.font.Italic;
-		var bold = true === this.font.Bold;
+		var italic = this.font.getItalic();
+		var bold = this.font.getBold();
 		var fontStyle;
 		if (italic && bold) {
 			fontStyle = FontStyle.FontStyleBoldItalic;
@@ -976,7 +925,7 @@
 		}
 
 		if (window["IS_NATIVE_EDITOR"]) {
-			var fontInfo = AscFonts.g_fontApplication.GetFontInfo(this.font.FontFamily.Name, fontStyle, this.LastFontOriginInfo);
+			var fontInfo = AscFonts.g_fontApplication.GetFontInfo(this.font.getName(), fontStyle, this.LastFontOriginInfo);
 			fontInfo = GetLoadInfoForMeasurer(fontInfo, fontStyle);
 
 			var flag = 0;
@@ -994,9 +943,9 @@
 			}
 
 			if (!angle) {
-				window["native"]["PD_LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.FontSize, flag);
+				window["native"]["PD_LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.getSize(), flag);
 			}
-			fontInfo = g_oTextMeasurer.Measurer["LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.FontSize, flag);
+			fontInfo = g_oTextMeasurer.Measurer["LoadFont"](fontInfo.Path, fontInfo.FaceIndex, this.font.getSize(), flag);
 			if (angle) {
 				this.fmgrGraphics[1].init(fontInfo);
 			} else {
@@ -1006,13 +955,13 @@
 			r = true;
 		} else {
 			if (angle) {
-				r = AscFonts.g_fontApplication.LoadFont(this.font.FontFamily.Name, AscCommon.g_font_loader, this.fmgrGraphics[1],
-					this.font.FontSize, fontStyle, this.ppiX, this.ppiY);
+				r = AscFonts.g_fontApplication.LoadFont(this.font.getName(), AscCommon.g_font_loader, this.fmgrGraphics[1],
+					this.font.getSize(), fontStyle, this.ppiX, this.ppiY);
 			} else {
-				r = AscFonts.g_fontApplication.LoadFont(this.font.FontFamily.Name, AscCommon.g_font_loader, this.fmgrGraphics[0],
-					this.font.FontSize, fontStyle, this.ppiX, this.ppiY);
-				AscFonts.g_fontApplication.LoadFont(this.font.FontFamily.Name, AscCommon.g_font_loader, this.fmgrGraphics[3],
-					this.font.FontSize, fontStyle, this.ppiX, this.ppiY);
+				r = AscFonts.g_fontApplication.LoadFont(this.font.getName(), AscCommon.g_font_loader, this.fmgrGraphics[0],
+					this.font.getSize(), fontStyle, this.ppiX, this.ppiY);
+				AscFonts.g_fontApplication.LoadFont(this.font.getName(), AscCommon.g_font_loader, this.fmgrGraphics[3],
+					this.font.getSize(), fontStyle, this.ppiX, this.ppiY);
 			}
 		}
 
@@ -1021,7 +970,7 @@
 		}
 
 		if (r === false) {
-			throw "Can not use " + this.font.FontFamily.Name + " font. (Check whether font file is loaded)";
+			throw "Can not use " + this.font.getName() + " font. (Check whether font file is loaded)";
 		}
 
 		return this;
@@ -1177,6 +1126,7 @@
 	};
 
 	DrawingContext.prototype.dashLineCleverHor = function (x1, y, x2) {
+		var isEven = 0 !== this.ctx.lineWidth % 2 ? 0.5 : 0;
 		var w_dot = AscCommonExcel.c_oAscCoAuthoringDottedWidth, w_dist = AscCommonExcel.c_oAscCoAuthoringDottedDistance;
 		var _x1 = this._mct.transformPointX(x1, y);
 		var _y = this._mct.transformPointY(x1, y) - 1;
@@ -1184,7 +1134,7 @@
 		var ctx = this.ctx;
 
 		_x1 = (_x1 >> 0);
-		_y = (_y >> 0) + 0.5;
+		_y = (_y >> 0) + isEven;
 		_x2 = (_x2 >> 0);
 
 		for (; _x1 < _x2; _x1 += w_dist) {
@@ -1199,6 +1149,7 @@
 		}
 	};
 	DrawingContext.prototype.dashLineCleverVer = function (x, y1, y2) {
+		var isEven = 0 !== this.ctx.lineWidth % 2 ? 0.5 : 0;
 		var w_dot = AscCommonExcel.c_oAscCoAuthoringDottedWidth, w_dist = AscCommonExcel.c_oAscCoAuthoringDottedDistance;
 		var _y1 = this._mct.transformPointY(x, y1);
 		var _x = this._mct.transformPointX(x, y1) - 1;
@@ -1206,7 +1157,7 @@
 		var ctx = this.ctx;
 
 		_y1 = (_y1 >> 0);
-		_x = (_x >> 0) + 0.5;
+		_x = (_x >> 0) + isEven;
 		_y2 = (_y2 >> 0);
 
 		for (; _y1 < _y2; _y1 += w_dist) {
@@ -1381,7 +1332,7 @@
 	DrawingContext.prototype._calcTextMetrics = function (w, wBB, fm, r) {
 		var factor = this.getFontSize() * r / fm.m_lUnits_Per_Em, l = fm.m_lLineHeight * factor, b = fm.m_lAscender *
 			factor, d = Math.abs(fm.m_lDescender * factor);
-		return new TextMetrics(w, b + d, l, b, d, this.font.FontSize, wBB);
+		return new TextMetrics(w, b + d, l, b, d, this.font.getSize(), wBB);
 	};
 
 
@@ -1394,7 +1345,6 @@
 	window["Asc"].getCvtRatio = getCvtRatio;
 	window["Asc"].colorObjToAscColor = colorObjToAscColor;
 
-	window["Asc"].FontProperties = FontProperties;
 	window["Asc"].TextMetrics = TextMetrics;
 	window["Asc"].FontMetrics = FontMetrics;
 	window["Asc"].DrawingContext = DrawingContext;

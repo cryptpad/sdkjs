@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -922,7 +922,9 @@ CDocMeta.prototype =
                         _cachedImage = this.GetCachedImage(_src);
                         if (null != _cachedImage)
                         {
-							g.drawImage2(_cachedImage, 0, 0, page.width_mm, page.height_mm);
+                            try {
+                                g.drawImage2(_cachedImage, 0, 0, page.width_mm, page.height_mm);
+                            } catch (err) {}
 							break;
                         }
                         else
@@ -933,7 +935,9 @@ CDocMeta.prototype =
 								obj.MetaDoc.SetCachedImage(_src, img);
 								if (1 != obj.BreakDrawing)
 								{
-									g.drawImage2(img, 0, 0, page.width_mm, page.height_mm);
+								    try {
+									    g.drawImage2(img, 0, 0, page.width_mm, page.height_mm);
+                                    } catch (err) {}
 								}
 
 								obj.MetaDoc.OnImageLoad(obj);
@@ -957,7 +961,9 @@ CDocMeta.prototype =
 						_cachedImage = this.GetCachedImage(_src);
 						if (null != _cachedImage)
 						{
-							g.drawImage2(_cachedImage, 0, 0, page.width_mm, page.height_mm);
+						    try {
+							    g.drawImage2(_cachedImage, 0, 0, page.width_mm, page.height_mm);
+                            } catch (err) {}
 							break;
 						}
 						else
@@ -968,7 +974,9 @@ CDocMeta.prototype =
 								obj.MetaDoc.SetCachedImage(_src, img);
 								if (1 != obj.BreakDrawing)
 								{
-									g.drawImage2(img, 0, 0, page.width_mm, page.height_mm);
+								    try {
+									    g.drawImage2(img, 0, 0, page.width_mm, page.height_mm);
+                                    } catch (err) {}
 								}
 
 								obj.MetaDoc.OnImageLoad(obj);
@@ -1020,7 +1028,9 @@ CDocMeta.prototype =
 								_ctx.setTransform(_tr.sx * _dX, _tr.shy * _dY, _tr.shx * _dX, _tr.sy * _dY, _tr.tx * _dX, _tr.ty * _dY);
 							}
 
-							g.drawImage2(_cachedImage,__x,__y,__w,__h);
+							try {
+							    g.drawImage2(_cachedImage,__x,__y,__w,__h);
+                            } catch (err) {}
 							//editor.WordControl.OnScroll();
 
 							if (_tr)
@@ -1049,7 +1059,9 @@ CDocMeta.prototype =
 									_ctx.setTransform(_tr.sx * _dX, _tr.shy * _dY, _tr.shx * _dX, _tr.sy * _dY, _tr.tx * _dX, _tr.ty * _dY);
 								}
 
-								g.drawImage2(img, __x, __y, __w, __h);
+								try {
+								    g.drawImage2(img, __x, __y, __w, __h);
+                                } catch (err) {}
 								//editor.WordControl.OnScroll();
 
 								if (_tr)
@@ -1166,6 +1178,12 @@ CDocMeta.prototype =
         // дорисовали страницу. теперь нужно удалить все объекты, у которых страница такая же
         // по идее удаляем только obj
         this.stopRenderingPage(obj.Page);
+
+        if (editor.watermarkDraw)
+        {
+            g.m_oContext.setTransform(1, 0, 0, 1, 0, 0);
+            editor.watermarkDraw.Draw(g.m_oContext, g.m_oContext.canvas.width, g.m_oContext.canvas.height);
+        }
 
         if (bIsFromPaint == 0)
             editor.WordControl.OnScroll();
@@ -2331,7 +2349,7 @@ CDocMeta.prototype =
                                     var old = curIndex;
                                     var start = curIndex;
                                     var end = start + lineSpans[i].inner.length;
-                                    curIndex = end + 1;
+                                    curIndex = end;
 
                                     if (_g1 > start)
                                         start = _g1;

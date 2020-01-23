@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -1194,7 +1194,7 @@ function CCacheManager()
 	}
 }
 
-function CPolygonPoint(X, Y)
+function CPolygonPoint2(X, Y)
 {
 	this.X = X;
 	this.Y = Y;
@@ -1214,7 +1214,7 @@ function CPolygonPath(precision)
 }
 CPolygonPath.prototype.PushPoint = function (x, y)
 {
-	this.Points.push(new CPolygonPoint(x / this.precision, y / this.precision));
+	this.Points.push(new CPolygonPoint2(x / this.precision, y / this.precision));
 };
 CPolygonPath.prototype.CorrectExtremePoints = function ()
 {
@@ -2655,6 +2655,7 @@ function CDrawingDocument()
 	this.GuiCanvasFillTOC = null;
 
 	this.TableStylesLastLook = null;
+	this.TableStylesLastClrScheme = null;
 	this.LastParagraphMargins = null;
 
 	this.TableStylesCheckLook = null;
@@ -2692,6 +2693,14 @@ function CDrawingDocument()
 	this._search_HdrFtr_Even = []; // Поиск в колонтитуле, который находится только на нечетных страницах
 	this._search_HdrFtr_Odd = []; // Поиск в колонтитуле, который находится только на четных страницах, включая первую
 	this._search_HdrFtr_Odd_no_First = []; // Поиск в колонтитуле, который находится только на нечетных страницах, кроме первой
+
+	this.isFirstStartRecalculate = false; // был ли хоть раз вызван OnStartRecalculate
+	this.isDisableEditBeforeCalculateLA = false; // залочили все, пока не досчитаем до конца
+	this.isFirstRecalculate = false; // был ли хоть раз вызван OnEndRecalculate
+	this.isFirstFullRecalculate = false; // был ли хоть раз вызван OnEndRecalculate c параметром isFull == true
+    this.isScrollToTargetAttack = false;
+
+    this.printedDocument = null; // selection print
 
 	this.showTarget = function (isShow)
 	{
@@ -2746,6 +2755,15 @@ function CDrawingDocument()
 		this.m_sLockedCursorType = "";
 	}
 
+	this.scrollToTargetOnRecalculate = function(pageCountOld, pageCountNew)
+    {
+        if (this.m_lTargetPage > pageCountOld && this.m_lTargetPage < pageCountNew)
+        {
+            this.isScrollToTargetAttack = true;
+            this.UpdateTarget(this.m_dTargetX, this.m_dTargetY, this.m_lTargetPage);
+        }
+    }
+
 	this.OnStartRecalculate = function (pageCount)
 	{
 		if (!this.m_oWordControl.MobileTouchManager)
@@ -2761,6 +2779,20 @@ function CDrawingDocument()
 			this.m_oWordControl.MobileTouchManager.ClearContextMenu();
 
 		this.m_bIsDocumentCalculating = true;
+
+		if (!this.isFirstStartRecalculate)
+		{
+            var api = this.m_oWordControl.m_oApi;
+            var options = api.DocInfo ? api.DocInfo.asc_getOptions() : null;
+
+            if (options && options["disableEditBeforeCalculate"])
+            {
+            	this.isDisableEditBeforeCalculateLA = true;
+                api.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+            }
+
+            this.isFirstStartRecalculate = true;
+		}
 	}
 
 	this.OnRepaintPage = function (index)
@@ -2834,10 +2866,12 @@ function CDrawingDocument()
 		{
 			this.OnEndRecalculate(false);
 		}
-	}
+	};
 
 	this.OnEndRecalculate = function (isFull, isBreak)
 	{
+		window['AscCommon'].g_specialPasteHelper.SpecialPasteButtonById_Show();
+
 		if (this.m_oWordControl)
 			this.m_oWordControl.m_oApi.checkLastWork();
 
@@ -2853,6 +2887,7 @@ function CDrawingDocument()
 		}
 
 		this.m_bIsBreakRecalculate = (isFull === true) ? false : true;
+		var oldPagesCount = this.m_lPagesCount;
 		if (isFull)
 		{
 			if (this.m_lPagesCount > this.m_lCountCalculatePages)
@@ -2923,16 +2958,51 @@ function CDrawingDocument()
 			}
 		}
 
+		if (!this.isFirstRecalculate)
+        {
+            this.scrollToTargetOnRecalculate(oldPagesCount, this.m_lPagesCount);
+        }
+
 		if (isFull)
 		{
 			this.m_oWordControl.OnScroll();
 
 			if (this.m_arPrintingWaitEndRecalculate)
-				this.m_oWordControl.m_oApi._downloadAs.apply(this.m_oWordControl.m_oApi, this.m_arPrintingWaitEndRecalculate);
+				this.m_oWordControl.m_oApi.downloadAs.apply(this.m_oWordControl.m_oApi, this.m_arPrintingWaitEndRecalculate);
 		}
 
+        if (isFull || isBreak)
+        {
+        	if (isFull)
+			{
+				if (!this.isFirstFullRecalculate)
+				{
+                    var api = this.m_oWordControl.m_oApi;
+                    var options = api.DocInfo && api.DocInfo.asc_getOptions();
+
+					if (!this.isFirstRecalculate)
+					{
+						// полный пересчет закончился, и не был пересчет документа.
+						api.goTo(options && options["action"]);
+					}
+
+					if (options && options["disableEditBeforeCalculate"])
+					{
+                        api.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, Asc.c_oAscAsyncAction.Waiting);
+                        this.isDisableEditBeforeCalculateLA = false;
+                    }
+				}
+
+				this.isFirstFullRecalculate = true;
+			}
+			else if (isBreak)
+			{
+                this.isFirstRecalculate = true;
+			}
+        }
+
 		//console.log("end " + this.m_lCountCalculatePages + "," + isFull + "," + isBreak);
-	}
+	};
 
 	this.ChangePageAttack = function (pageIndex)
 	{
@@ -2941,7 +3011,7 @@ function CDrawingDocument()
 
 		this.StopRenderingPage(pageIndex);
 		this.m_oWordControl.OnScroll();
-	}
+	};
 
 	this.CheckPagesSizeMaximum = function(_w, _h)
 	{
@@ -2968,7 +3038,7 @@ function CDrawingDocument()
 		}
 
 		return [w, h];
-	}
+	};
 
 	this.CheckRecalculatePage = function (width, height, pageIndex)
 	{
@@ -3058,7 +3128,7 @@ function CDrawingDocument()
 			context.beginPath();
 		}
 
-		if (this.m_oWordControl.m_oApi.watermarkDraw)
+		if (this.m_oWordControl.m_oApi.watermarkDraw && this.m_oWordControl.m_oLogicDocument)
 			this.m_oWordControl.m_oApi.watermarkDraw.Draw(page.drawingPage.cachedImage.image.ctx, w, h);
 
 		//var EndTime = new Date().getTime();
@@ -3084,11 +3154,12 @@ function CDrawingDocument()
 
 	this.RenderDocument = function (Renderer)
 	{
-		for (var i = 0; i < this.m_lPagesCount; i++)
+	    var _this = this.printedDocument ? this.printedDocument.DrawingDocument : this;
+	    for (var i = 0; i < _this.m_lPagesCount; i++)
 		{
-			var page = this.m_arrPages[i];
+			var page = _this.m_arrPages[i];
 			Renderer.BeginPage(page.width_mm, page.height_mm);
-			this.m_oLogicDocument.DrawPage(i, Renderer);
+            _this.m_oLogicDocument.DrawPage(i, Renderer);
 			Renderer.EndPage();
 		}
 	}
@@ -3102,10 +3173,11 @@ function CDrawingDocument()
 		this.m_oWordControl.m_oApi.ShowParaMarks = false;
 		this.RenderDocument(Renderer);
 		this.m_oWordControl.m_oApi.ShowParaMarks = old_marks;
+        this.printedDocument = null;
 		var ret = Renderer.Memory.GetBase64Memory();
 		//console.log(ret);
 		return ret;
-	}
+	};
 
 	this.CheckPrint = function(params)
 	{
@@ -3114,7 +3186,7 @@ function CDrawingDocument()
 
 		if (this.m_arPrintingWaitEndRecalculate)
 		{
-			this.m_oWordControl.m_oApi.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, params[2]);
+			this.m_oWordControl.m_oApi.sync_EndAction(Asc.c_oAscAsyncActionType.BlockInteraction, params[0]);
 			this.m_arPrintingWaitEndRecalculate = null;
 			return false;
 		}
@@ -3123,12 +3195,13 @@ function CDrawingDocument()
 			return false;
 
 		this.m_arPrintingWaitEndRecalculate = params;
-		this.m_oWordControl.m_oApi.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, params[2]);
+		this.m_oWordControl.m_oApi.sync_StartAction(Asc.c_oAscAsyncActionType.BlockInteraction, params[0]);
 		return true;
-	}
+	};
 
-	this.ToRenderer2 = function ()
+	this.ToRenderer2 = function (document)
 	{
+        var _this = this.printedDocument ? this.printedDocument.DrawingDocument : this;
 		var Renderer = new AscCommon.CDocumentRenderer();
         Renderer.InitPicker(AscCommon.g_oTextMeasurer.m_oManager);
 
@@ -3136,11 +3209,11 @@ function CDrawingDocument()
 		this.m_oWordControl.m_oApi.ShowParaMarks = false;
 
 		var ret = "";
-		for (var i = 0; i < this.m_lPagesCount; i++)
+		for (var i = 0; i < _this.m_lPagesCount; i++)
 		{
-			var page = this.m_arrPages[i];
+			var page = _this.m_arrPages[i];
 			Renderer.BeginPage(page.width_mm, page.height_mm);
-			this.m_oLogicDocument.DrawPage(i, Renderer);
+            _this.m_oLogicDocument.DrawPage(i, Renderer);
 			Renderer.EndPage();
 
 			ret += Renderer.Memory.GetBase64Memory();
@@ -3148,14 +3221,17 @@ function CDrawingDocument()
 		}
 
 		this.m_oWordControl.m_oApi.ShowParaMarks = old_marks;
+        this.printedDocument = null;
 		//console.log(ret);
 		return ret;
-	}
+	};
 	this.ToRendererPart = function (noBase64)
 	{
+        var _this = this.printedDocument ? this.printedDocument.DrawingDocument : this;
+
 		var watermark = this.m_oWordControl.m_oApi.watermarkDraw;
 
-		var pagescount = Math.min(this.m_lPagesCount, this.m_lCountCalculatePages);
+		var pagescount = Math.min(_this.m_lPagesCount, _this.m_lCountCalculatePages);
 
 		if (-1 == this.m_lCurrentRendererPage)
 		{
@@ -3179,9 +3255,9 @@ function CDrawingDocument()
 
 		for (var i = start; i <= end; i++)
 		{
-			var page = this.m_arrPages[i];
+			var page = _this.m_arrPages[i];
 			renderer.BeginPage(page.width_mm, page.height_mm);
-			this.m_oLogicDocument.DrawPage(i, renderer);
+            _this.m_oLogicDocument.DrawPage(i, renderer);
 
 			if (watermark)
 				watermark.DrawOnRenderer(renderer, page.width_mm, page.height_mm);
@@ -3199,6 +3275,7 @@ function CDrawingDocument()
 			this.m_lCurrentRendererPage = -1;
 			this.m_oDocRenderer = null;
 			this.m_oWordControl.m_oApi.ShowParaMarks = this.m_bOldShowMarks;
+            this.printedDocument = null;
 		}
 
 		if (noBase64) {
@@ -3206,7 +3283,7 @@ function CDrawingDocument()
 		} else {
 			return renderer.Memory.GetBase64Memory();
 		}
-	}
+	};
 
 	this.StopRenderingPage = function (pageIndex)
 	{
@@ -3214,7 +3291,7 @@ function CDrawingDocument()
 			this.m_oDocumentRenderer.stopRenderingPage(pageIndex);
 
 		this.m_arrPages[pageIndex].drawingPage.UnLock(this.m_oCacheManager);
-	}
+	};
 
 	this.ClearCachePages = function ()
 	{
@@ -3224,7 +3301,7 @@ function CDrawingDocument()
 			if (page)
 				page.drawingPage.SetRepaint(this.m_oCacheManager);
 		}
-	}
+	};
 
 	this.CloseFile = function ()
 	{
@@ -3235,7 +3312,7 @@ function CDrawingDocument()
 		this.m_lDrawingFirst = -1;
 		this.m_lDrawingEnd = -1;
 		this.m_lCurrentPage = -1;
-	}
+	};
 
 	this.CheckRasterImageOnScreen = function (src)
 	{
@@ -3265,12 +3342,12 @@ function CDrawingDocument()
 
 		if (bIsRaster)
 			this.m_oWordControl.OnScroll();
-	}
+	};
 
 	this.FirePaint = function ()
 	{
 		this.m_oWordControl.OnScroll();
-	}
+	};
 
 	this.ConvertCoordsFromCursor = function (x, y, bIsRul)
 	{
@@ -3310,7 +3387,7 @@ function CDrawingDocument()
 		}
 
 		return {X: 0, Y: 0, Page: -1, DrawPage: -1};
-	}
+	};
 
 	this.ConvertCoordsFromCursorPage = function (x, y, page, bIsRul)
 	{
@@ -3344,7 +3421,7 @@ function CDrawingDocument()
 		var y_mm = (_y - rect.top) * dKoef;
 
 		return {X: x_mm, Y: y_mm, Page: rect.pageIndex, DrawPage: page};
-	}
+	};
 
 	this.ConvertCoordsToAnotherPage = function (x, y, pageCoord, pageNeed)
 	{
@@ -3364,7 +3441,7 @@ function CDrawingDocument()
 		var _y = (yCursor - page2.top) * dKoef2;
 
 		return {X: _x, Y: _y, Error: false};
-	}
+	};
 
 	this.ConvertCoordsFromCursor2 = function (x, y, bIsRul, bIsNoNormalize, _zoomVal)
 	{
@@ -3461,7 +3538,7 @@ function CDrawingDocument()
 		}
 
 		return {X: 0, Y: 0, Page: -1, DrawPage: -1};
-	}
+	};
 
 	this.ConvetToPageCoords = function (x, y, pageIndex)
 	{
@@ -3476,7 +3553,7 @@ function CDrawingDocument()
 		var _y = (y - rect.top) * dKoef;
 
 		return {X: _x, Y: _y, Page: pageIndex, Error: false};
-	}
+	};
 
 	this.IsCursorInTableCur = function (x, y, page)
 	{
@@ -3869,8 +3946,10 @@ function CDrawingDocument()
 		}
 
 		var bNeedScrollToTarget = true;
-		if (this.m_dTargetX == x && this.m_dTargetY == y && this.m_lTargetPage == pageIndex)
+		if (!this.isScrollToTargetAttack && this.m_dTargetX == x && this.m_dTargetY == y && this.m_lTargetPage == pageIndex)
 			bNeedScrollToTarget = false;
+
+		this.isScrollToTargetAttack = false;
 
 		if (-1 != this.m_lTimerUpdateTargetID)
 		{
@@ -4445,7 +4524,7 @@ function CDrawingDocument()
 
 					for (var k = 0; k < _points1.length; k++)
 					{
-						if (Math.abs(_points1[k].X - _points[k].X) > 0.00001 || Math.abs(_points1[k].Y - _points[k].Y) > 0.00001)
+						if (Math.abs(_points1[k].X - _points2[k].X) > 0.00001 || Math.abs(_points1[k].Y - _points2[k].Y) > 0.00001)
 							return true;
 					}
 				}
@@ -4471,12 +4550,19 @@ function CDrawingDocument()
 		var _curPage;
 		var _color;
 
+		var isNoButtons = this.m_oWordControl.m_oLogicDocument ? this.m_oWordControl.m_oLogicDocument.IsFillingFormMode() : false;
+		var buttonsCount = 0;
+
 		for (var nIndexContentControl = 0; nIndexContentControl < this.ContentControlObjects.length; nIndexContentControl++)
 		{
 			_object = this.ContentControlObjects[nIndexContentControl];
 			_transform = _object.transform;
 			_curPage = _object.getPage();
 			_color = _object.getColor();
+
+			buttonsCount = _object.Buttons.length;
+			if (isNoButtons)
+				buttonsCount = 0;
 
 			if (_color)
 			{
@@ -4718,15 +4804,18 @@ function CDrawingDocument()
 					var nAdvancedL = 0;
 					var nAdvancedLB = 0;
 
-					if (_object.Name == "" && 0 == _object.Buttons.length)
+					if (_object.Name == "" && 0 == buttonsCount)
 					{
-						ctx.rect(_x, _y, 15, 20);
-						overlay.CheckRect(_x, _y, 15, 20);
+						if (!isNoButtons)
+						{
+                            ctx.rect(_x, _y, 15, 20);
+                            overlay.CheckRect(_x, _y, 15, 20);
 
-						ctx.fillStyle = (1 == this.ContentControlObjectState) ? AscCommonWord.GlobalSkin.ContentControlsAnchorActive : AscCommonWord.GlobalSkin.ContentControlsBack;
+                            ctx.fillStyle = (1 == this.ContentControlObjectState) ? AscCommonWord.GlobalSkin.ContentControlsAnchorActive : AscCommonWord.GlobalSkin.ContentControlsBack;
 
-						ctx.fill();
-						ctx.stroke();
+                            ctx.fill();
+                            ctx.stroke();
+                        }
 					}
 					else
 					{
@@ -4738,9 +4827,9 @@ function CDrawingDocument()
 						if (_object.Name != "")
 						{
 							ctx.font = g_oContentControlButtonIcons.getFont();
-							widthControl += g_oContentControlButtonIcons.measure(_object.Name, ctx);
+							widthControl += (g_oContentControlButtonIcons.measure(_object.Name, ctx) >> 0);
 							widthControl += 6; // 3 + 3
-							if (_object.NameButtonAdvanced)
+							if (_object.NameButtonAdvanced && !isNoButtons)
 							{
 								nAdvancedL = _x + 15 + widthControl;
 								widthControl += 5;
@@ -4752,17 +4841,24 @@ function CDrawingDocument()
 
 						_object.NameWidth = widthControl;
 
-						nAdvancedLB = _x + 15 + widthControl;
-						widthControl += (20 * _object.Buttons.length);
+						nAdvancedLB = _x + widthControl;
+						if (!isNoButtons)
+							nAdvancedLB += 15;
 
-						overlay.CheckRect(_x, _y, 15 + widthControl, 20);
+						widthControl += (20 * buttonsCount);
+
+						var _textNameOffset = 15;
+						if (isNoButtons)
+							_textNameOffset = 0;
+
+						overlay.CheckRect(_x, _y, _textNameOffset + widthControl, 20);
 
 						ctx.beginPath();
 
 						var _fillStyleSetup = (1 == this.ContentControlObjectState) ? AscCommonWord.GlobalSkin.ContentControlsAnchorActive : AscCommonWord.GlobalSkin.ContentControlsBack;
 						var _fillStyle = "";
 						var _fillX = _x;
-						var _fillW = 15;
+						var _fillW = isNoButtons ? 0 : 15;
 						if (_object.NameWidth != 0)
 						{
 							if (_object.ActiveButtonIndex == -1)
@@ -4786,7 +4882,7 @@ function CDrawingDocument()
 							_fillStyleSetup = _fillStyle;
 						}
 
-						for (var nIndexB = 0; nIndexB < _object.Buttons.length; nIndexB++)
+						for (var nIndexB = 0; nIndexB < buttonsCount; nIndexB++)
 						{
 							if (_object.ActiveButtonIndex == nIndexB)
 								_fillStyle = AscCommonWord.GlobalSkin.ContentControlsActive;
@@ -4817,7 +4913,10 @@ function CDrawingDocument()
 						_fillW = 0;
 
 						ctx.beginPath();
-						ctx.rect(_x, _y, 15 + widthControl, 20);
+						if (!isNoButtons)
+							ctx.rect(_x, _y, 15 + widthControl, 20);
+						else
+                            ctx.rect(_x, _y, widthControl, 20);
 						ctx.stroke();
 					}
 
@@ -4827,9 +4926,9 @@ function CDrawingDocument()
 					{
 						ctx.fillStyle = (_object.ActiveButtonIndex == -1) ? AscCommonWord.GlobalSkin.ContentControlsTextActive : AscCommonWord.GlobalSkin.ContentControlsText;
 
-						ctx.fillText(_object.Name, _x + 15 + 3, _y + 20 - 6);
+						ctx.fillText(_object.Name, _x + _textNameOffset + 3, _y + 20 - 6);
 
-						if (_object.NameButtonAdvanced)
+						if (_object.NameButtonAdvanced && !isNoButtons)
 						{
 							nAdvancedL = (nAdvancedL + 0.5) >> 0;
 							var nY = _y - 0.5;
@@ -4853,7 +4952,7 @@ function CDrawingDocument()
 					if (!AscCommon.AscBrowser.isRetina)
 						_yCell = 1 + (_y >> 0);
 
-					for (var nIndexB = 0; nIndexB < _object.Buttons.length; nIndexB++)
+					for (var nIndexB = 0; nIndexB < buttonsCount; nIndexB++)
 					{
 						var image = g_oContentControlButtonIcons.getImage(_object.Buttons[nIndexB], nIndexB == _object.ActiveButtonIndex);
 						if (image)
@@ -4861,57 +4960,59 @@ function CDrawingDocument()
 						nAdvancedLB += 20;
 					}
 
-					var cx = _x - 0.5 + 4;
-					var cy = _y - 0.5 + 4;
-
-					var _color1 = "#ADADAD";
-					var _color2 = "#D4D4D4";
-
-					if (0 == this.ContentControlObjectState || 1 == this.ContentControlObjectState)
+					if (!isNoButtons)
 					{
-						_color1 = "#444444";
-						_color2 = "#9D9D9D";
-					}
+                        var cx = _x - 0.5 + 4;
+                        var cy = _y - 0.5 + 4;
 
-					overlay.AddRect(cx, cy, 3, 3);
-					overlay.AddRect(cx + 5, cy, 3, 3);
-					overlay.AddRect(cx, cy + 5, 3, 3);
-					overlay.AddRect(cx + 5, cy + 5, 3, 3);
-					overlay.AddRect(cx, cy + 10, 3, 3);
-					overlay.AddRect(cx + 5, cy + 10, 3, 3);
+                        var _color1 = "#ADADAD";
+                        var _color2 = "#D4D4D4";
 
-					ctx.fillStyle = _color2;
-					ctx.fill();
-					ctx.beginPath();
+                        if (0 == this.ContentControlObjectState || 1 == this.ContentControlObjectState) {
+                            _color1 = "#444444";
+                            _color2 = "#9D9D9D";
+                        }
 
-					ctx.moveTo(cx + 1.5, cy);
-					ctx.lineTo(cx + 1.5, cy + 3);
-					ctx.moveTo(cx + 6.5, cy);
-					ctx.lineTo(cx + 6.5, cy + 3);
-					ctx.moveTo(cx + 1.5, cy + 5);
-					ctx.lineTo(cx + 1.5, cy + 8);
-					ctx.moveTo(cx + 6.5, cy + 5);
-					ctx.lineTo(cx + 6.5, cy + 8);
-					ctx.moveTo(cx + 1.5, cy + 10);
-					ctx.lineTo(cx + 1.5, cy + 13);
-					ctx.moveTo(cx + 6.5, cy + 10);
-					ctx.lineTo(cx + 6.5, cy + 13);
+                        overlay.AddRect(cx, cy, 3, 3);
+                        overlay.AddRect(cx + 5, cy, 3, 3);
+                        overlay.AddRect(cx, cy + 5, 3, 3);
+                        overlay.AddRect(cx + 5, cy + 5, 3, 3);
+                        overlay.AddRect(cx, cy + 10, 3, 3);
+                        overlay.AddRect(cx + 5, cy + 10, 3, 3);
 
-					ctx.moveTo(cx, cy + 1.5);
-					ctx.lineTo(cx + 3, cy + 1.5);
-					ctx.moveTo(cx + 5, cy + 1.5);
-					ctx.lineTo(cx + 8, cy + 1.5);
-					ctx.moveTo(cx, cy + 6.5);
-					ctx.lineTo(cx + 3, cy + 6.5);
-					ctx.moveTo(cx + 5, cy + 6.5);
-					ctx.lineTo(cx + 8, cy + 6.5);
-					ctx.moveTo(cx, cy + 11.5);
-					ctx.lineTo(cx + 3, cy + 11.5);
-					ctx.moveTo(cx + 5, cy + 11.5);
-					ctx.lineTo(cx + 8, cy + 11.5);
+                        ctx.fillStyle = _color2;
+                        ctx.fill();
+                        ctx.beginPath();
 
-					ctx.strokeStyle = _color1;
-					ctx.stroke();
+                        ctx.moveTo(cx + 1.5, cy);
+                        ctx.lineTo(cx + 1.5, cy + 3);
+                        ctx.moveTo(cx + 6.5, cy);
+                        ctx.lineTo(cx + 6.5, cy + 3);
+                        ctx.moveTo(cx + 1.5, cy + 5);
+                        ctx.lineTo(cx + 1.5, cy + 8);
+                        ctx.moveTo(cx + 6.5, cy + 5);
+                        ctx.lineTo(cx + 6.5, cy + 8);
+                        ctx.moveTo(cx + 1.5, cy + 10);
+                        ctx.lineTo(cx + 1.5, cy + 13);
+                        ctx.moveTo(cx + 6.5, cy + 10);
+                        ctx.lineTo(cx + 6.5, cy + 13);
+
+                        ctx.moveTo(cx, cy + 1.5);
+                        ctx.lineTo(cx + 3, cy + 1.5);
+                        ctx.moveTo(cx + 5, cy + 1.5);
+                        ctx.lineTo(cx + 8, cy + 1.5);
+                        ctx.moveTo(cx, cy + 6.5);
+                        ctx.lineTo(cx + 3, cy + 6.5);
+                        ctx.moveTo(cx + 5, cy + 6.5);
+                        ctx.lineTo(cx + 8, cy + 6.5);
+                        ctx.moveTo(cx, cy + 11.5);
+                        ctx.lineTo(cx + 3, cy + 11.5);
+                        ctx.moveTo(cx + 5, cy + 11.5);
+                        ctx.lineTo(cx + 8, cy + 11.5);
+
+                        ctx.strokeStyle = _color1;
+                        ctx.stroke();
+                    }
 					ctx.beginPath();
 				}
 				else
@@ -4923,7 +5024,7 @@ function CDrawingDocument()
 
 					var nAdvancedL = 0;
 					var nAdvancedLB = 0;
-					if (_object.Name != "" || 0 != _object.Buttons.length)
+					if (_object.Name != "" || 0 != buttonsCount && !isNoButtons)
 					{
 						_x = _rect.X;
 						_y = _rect.Y - (20 / dKoefY);
@@ -4936,7 +5037,7 @@ function CDrawingDocument()
 							ctx.font = g_oContentControlButtonIcons.getFont();
 							widthControl += (g_oContentControlButtonIcons.measure(_object.Name, ctx) + 3);
 							widthControl += 6; // 3 + 3
-							if (_object.NameButtonAdvanced)
+							if (_object.NameButtonAdvanced && !isNoButtons)
 							{
 								nAdvancedL = 15 + widthControl;
 								widthControl += 5;
@@ -4948,10 +5049,16 @@ function CDrawingDocument()
 
 						_object.NameWidth = widthControl;
 
-						nAdvancedLB = 15 + widthControl;
-						widthControl += (20 * _object.Buttons.length);
+						nAdvancedLB = widthControl;
+						if (!isNoButtons)
+							nAdvancedLB += 15;
 
-						_r = _x + ((15 + widthControl) / dKoefX);
+						widthControl += (20 * buttonsCount);
+
+						if (!isNoButtons)
+							_r = _x + ((15 + widthControl) / dKoefX);
+						else
+                            _r = _x + (widthControl / dKoefX);
 					}
 
 					var x1 = _transform.TransformPointX(_x, _y);
@@ -4983,17 +5090,20 @@ function CDrawingDocument()
 
 					ctx.beginPath();
 
-					if (_object.Name == "" && 0 == _object.Buttons.length)
+					if (_object.Name == "" && 0 == buttonsCount)
 					{
-						ctx.moveTo(x1, y1);
-						ctx.lineTo(x2, y2);
-						ctx.lineTo(x3, y3);
-						ctx.lineTo(x4, y4);
-						ctx.closePath();
+						if (!isNoButtons)
+						{
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.lineTo(x3, y3);
+                            ctx.lineTo(x4, y4);
+                            ctx.closePath();
 
-						ctx.fillStyle = (1 == this.ContentControlObjectState) ? AscCommonWord.GlobalSkin.ContentControlsAnchorActive : AscCommonWord.GlobalSkin.ContentControlsBack;
-						ctx.fill();
-						ctx.stroke();
+                            ctx.fillStyle = (1 == this.ContentControlObjectState) ? AscCommonWord.GlobalSkin.ContentControlsAnchorActive : AscCommonWord.GlobalSkin.ContentControlsBack;
+                            ctx.fill();
+                            ctx.stroke();
+                        }
 					}
 					else
 					{
@@ -5018,7 +5128,7 @@ function CDrawingDocument()
 						var _fillStyleSetup = (1 == this.ContentControlObjectState) ? AscCommonWord.GlobalSkin.ContentControlsAnchorActive : AscCommonWord.GlobalSkin.ContentControlsBack;
 						var _fillStyle = "";
 						var _fillX = _x;
-						var _fillW = 15;
+						var _fillW = isNoButtons ? 0 : 15;
 						if (_object.Name != "")
 						{
 							if (_object.NameWidth != 0)
@@ -5046,7 +5156,7 @@ function CDrawingDocument()
 							}
 						}
 
-						for (var nIndexB = 0; nIndexB < _object.Buttons.length; nIndexB++)
+						for (var nIndexB = 0; nIndexB < buttonsCount; nIndexB++)
 						{
 							if (_object.ActiveButtonIndex == nIndexB)
 								_fillStyle = AscCommonWord.GlobalSkin.ContentControlsActive;
@@ -5083,9 +5193,10 @@ function CDrawingDocument()
 							ctx.fillStyle = (_object.ActiveButtonIndex == -1) ? AscCommonWord.GlobalSkin.ContentControlsTextActive : AscCommonWord.GlobalSkin.ContentControlsText;
 
 							ctx.font = g_oContentControlButtonIcons.getFont(dKoefY);
-							ctx.fillText(_object.Name, _x + (15 + 3) / dKoefX, _y + (20 - 6) / dKoefY);
+							var _offset15 = isNoButtons ? 0 : 15;
+							ctx.fillText(_object.Name, _x + (_offset15 + 3) / dKoefX, _y + (20 - 6) / dKoefY);
 
-							if (_object.NameButtonAdvanced)
+							if (_object.NameButtonAdvanced && !isNoButtons)
 							{
 								var nY = _y;
 								nY += 9 / dKoefY;
@@ -5101,7 +5212,7 @@ function CDrawingDocument()
 							}
 						}
 
-						for (var nIndexB = 0; nIndexB < _object.Buttons.length; nIndexB++)
+						for (var nIndexB = 0; nIndexB < buttonsCount; nIndexB++)
 						{
 							var image = g_oContentControlButtonIcons.getImage(_object.Buttons[nIndexB], nIndexB == _object.ActiveButtonIndex);
 							if (image)
@@ -5123,35 +5234,38 @@ function CDrawingDocument()
 
 					ctx.beginPath();
 
-					var cx1 = _x + 5  / dKoefX;
-					var cy1 = _y + 5  / dKoefY;
-					var cx2 = _x + 10 / dKoefX;
-					var cy2 = _y + 5  / dKoefY;
+					if (!isNoButtons)
+					{
+                        var cx1 = _x + 5 / dKoefX;
+                        var cy1 = _y + 5 / dKoefY;
+                        var cx2 = _x + 10 / dKoefX;
+                        var cy2 = _y + 5 / dKoefY;
 
-					var cx3 = _x + 5  / dKoefX;
-					var cy3 = _y + 10 / dKoefY;
-					var cx4 = _x + 10 / dKoefX;
-					var cy4 = _y + 10 / dKoefY;
+                        var cx3 = _x + 5 / dKoefX;
+                        var cy3 = _y + 10 / dKoefY;
+                        var cx4 = _x + 10 / dKoefX;
+                        var cy4 = _y + 10 / dKoefY;
 
-					var cx5 = _x + 5  / dKoefX;
-					var cy5 = _y + 15 / dKoefY;
-					var cx6 = _x + 10 / dKoefX;
-					var cy6 = _y + 15 / dKoefY;
+                        var cx5 = _x + 5 / dKoefX;
+                        var cy5 = _y + 15 / dKoefY;
+                        var cx6 = _x + 10 / dKoefX;
+                        var cy6 = _y + 15 / dKoefY;
 
-					overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx1, cy1), drPage.top + dKoefY * _transform.TransformPointY(cx1, cy1), 1.5);
-					overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx2, cy2), drPage.top + dKoefY * _transform.TransformPointY(cx2, cy2), 1.5);
-					overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx3, cy3), drPage.top + dKoefY * _transform.TransformPointY(cx3, cy3), 1.5);
-					overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx4, cy4), drPage.top + dKoefY * _transform.TransformPointY(cx4, cy4), 1.5);
-					overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx5, cy5), drPage.top + dKoefY * _transform.TransformPointY(cx5, cy5), 1.5);
-					overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx6, cy6), drPage.top + dKoefY * _transform.TransformPointY(cx6, cy6), 1.5);
+                        overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx1, cy1), drPage.top + dKoefY * _transform.TransformPointY(cx1, cy1), 1.5);
+                        overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx2, cy2), drPage.top + dKoefY * _transform.TransformPointY(cx2, cy2), 1.5);
+                        overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx3, cy3), drPage.top + dKoefY * _transform.TransformPointY(cx3, cy3), 1.5);
+                        overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx4, cy4), drPage.top + dKoefY * _transform.TransformPointY(cx4, cy4), 1.5);
+                        overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx5, cy5), drPage.top + dKoefY * _transform.TransformPointY(cx5, cy5), 1.5);
+                        overlay.AddEllipse(drPage.left + dKoefX * _transform.TransformPointX(cx6, cy6), drPage.top + dKoefY * _transform.TransformPointY(cx6, cy6), 1.5);
 
-					var _color1 = "#ADADAD";
-					if (0 == this.ContentControlObjectState || 1 == this.ContentControlObjectState)
-						_color1 = "#444444";
+                        var _color1 = "#ADADAD";
+                        if (0 == this.ContentControlObjectState || 1 == this.ContentControlObjectState)
+                            _color1 = "#444444";
 
-					ctx.fillStyle = _color1;
-					ctx.fill();
-					ctx.beginPath();
+                        ctx.fillStyle = _color1;
+                        ctx.fill();
+                        ctx.beginPath();
+                    }
 				}
 			}
 		}
@@ -6311,7 +6425,7 @@ function CDrawingDocument()
 		if (this.m_oWordControl.MobileTouchManager)
 		{
 			this.m_oWordControl.MobileTouchManager.TableStartTrack_Check = true;
-			markup.Table.Start_TrackTable();
+			markup.Table.StartTrackTable();
 			this.m_oWordControl.MobileTouchManager.TableStartTrack_Check = false;
 		}
 	}
@@ -7569,6 +7683,12 @@ function CDrawingDocument()
 		if (!this.m_oWordControl.m_oApi.asc_checkNeedCallback("asc_onInitTableTemplates"))
 			return;
 
+        var logicDoc = this.m_oWordControl.m_oLogicDocument;
+
+        var newClrScheme = null;
+        if (logicDoc && logicDoc.theme && logicDoc.theme.themeElements)
+        	newClrScheme = logicDoc.theme.themeElements.clrScheme;
+
 		var bIsChanged = false;
 		if (null == this.TableStylesLastLook)
 		{
@@ -7581,6 +7701,8 @@ function CDrawingDocument()
 			this.TableStylesLastLook.BandHor = tableLook.BandHor;
 			this.TableStylesLastLook.BandVer = tableLook.BandVer;
 			bIsChanged = true;
+
+            this.TableStylesLastClrScheme = newClrScheme;
 		}
 		else
 		{
@@ -7614,12 +7736,16 @@ function CDrawingDocument()
 				this.TableStylesLastLook.BandVer = tableLook.BandVer;
 				bIsChanged = true;
 			}
+			if (this.TableStylesLastClrScheme !== newClrScheme)
+			{
+				this.TableStylesLastClrScheme = newClrScheme;
+				bIsChanged = true;
+			}
 		}
 
 		if (!bIsChanged)
 			return;
 
-		var logicDoc = this.m_oWordControl.m_oLogicDocument;
 		var _dst_styles = [];
 
 		var _styles = logicDoc.Styles.Get_AllTableStyles();
@@ -7722,14 +7848,15 @@ function CDrawingDocument()
 			var _old_mode = editor.isViewMode;
 			editor.isViewMode = true;
 			editor.isShowTableEmptyLineAttack = true;
-			_table_styles.Draw(0, graphics);
+			_table_styles.Draw(0, graphics, false);
 			editor.isShowTableEmptyLineAttack = false;
 			editor.isViewMode = _old_mode;
 
-			var _styleD = new Asc.CAscTableStyle();
-			_styleD.Type = 0;
-			_styleD.Image = _canvas.toDataURL("image/png");
-			_styleD.Id = i;
+			var _styleD = new AscCommon.CStyleImage();
+			_styleD.type = AscCommon.c_oAscStyleImage.Default;
+			_styleD.image = _canvas.toDataURL("image/png");
+			_styleD.name = i;
+			_styleD.displayName = _style.Name;
 			_dst_styles.push(_styleD);
 		}
 		g_oTableId.m_bTurnOff = false;
@@ -7775,6 +7902,8 @@ function CDrawingDocument()
 			oWordControl.EndUpdateOverlay();
 			return true;
 		}
+
+        var isNoButtons = oWordControl.m_oLogicDocument ? oWordControl.m_oLogicDocument.IsFillingFormMode() : false;
 
 		if (this.FrameRect.IsActive)
 		{
@@ -7849,6 +7978,10 @@ function CDrawingDocument()
 		for (var i = 0; i < this.ContentControlObjects.length; i++)
 		{
 			var _content_control = this.ContentControlObjects[i];
+			var _content_control_buttons_len = _content_control.Buttons.length;
+			if (isNoButtons)
+				_content_control_buttons_len = 0;
+
 			if (_content_control.type == c_oContentControlTrack.In)
 			{
 				var _rect = _content_control.getXY();
@@ -7867,7 +8000,7 @@ function CDrawingDocument()
 				var _r = _rect.X;
 				var _b = _rect.Y + (20 / dKoefY);
 
-				if (_content_control.Name != "" || 0 != _content_control.Buttons.length)
+				if (_content_control.Name != "" || 0 != _content_control_buttons_len)
 				{
 					_x = _rect.X;
 					_y = _rect.Y - (20 / dKoefY);
@@ -7915,7 +8048,7 @@ function CDrawingDocument()
 					this.LockCursorType("default");
 					return true;
 				}
-				else if (_content_control.NameButtonAdvanced && posX > _r && posX < (_r + _content_control.NameWidth / dKoefX) && posY > _y && posY < _b)
+				else if (_content_control.NameButtonAdvanced && !isNoButtons && posX > _r && posX < (_r + _content_control.NameWidth / dKoefX) && posY > _y && posY < _b)
 				{
 					if (_content_control.ActiveButtonIndex == -1)
 					{
@@ -7948,7 +8081,7 @@ function CDrawingDocument()
 				else
 				{
 					var _posR = _r + _content_control.NameWidth / dKoefX;
-					for (var indexB = 0; indexB < _content_control.Buttons.length; indexB++)
+					for (var indexB = 0; indexB < _content_control_buttons_len; indexB++)
 					{
 						if (posX > _posR && posX < (_posR + 20 / dKoefX) && posY > _y && posY < _b)
 						{
@@ -7994,10 +8127,15 @@ function CDrawingDocument()
 	this.checkMouseDown_DrawingOnUp = function (pos)
 	{
 		var oWordControl = this.m_oWordControl;
+        var isNoButtons = oWordControl.m_oLogicDocument ? oWordControl.m_oLogicDocument.IsFillingFormMode() : false;
 
 		for (var i = 0; i < this.ContentControlObjects.length; i++)
 		{
 			var _content_control = this.ContentControlObjects[i];
+            var _content_control_buttons_len = _content_control.Buttons.length;
+            if (isNoButtons)
+                _content_control_buttons_len = 0;
+
 			if (_content_control.type == c_oContentControlTrack.In)
 			{
 				var _rect = _content_control.getXY();
@@ -8016,7 +8154,7 @@ function CDrawingDocument()
 				var _r = _rect.X;
 				var _b = _rect.Y + (20 / dKoefY);
 
-				if (_content_control.Name != "" || 0 != _content_control.Buttons.length)
+				if (_content_control.Name != "" || 0 != _content_control_buttons_len)
 				{
 					_x = _rect.X;
 					_y = _rect.Y - (20 / dKoefY);
@@ -8048,14 +8186,14 @@ function CDrawingDocument()
 				{
 					return true;
 				}
-				else if (_content_control.NameButtonAdvanced && posX > _r && posX < (_r + _content_control.NameWidth / dKoefX) && posY > _y && posY < _b)
+				else if (_content_control.NameButtonAdvanced && !isNoButtons && posX > _r && posX < (_r + _content_control.NameWidth / dKoefX) && posY > _y && posY < _b)
 				{
 					return true;
 				}
 				else
 				{
 					var _posR = _r + _content_control.NameWidth / dKoefX;
-					for (var indexB = 0; indexB < _content_control.Buttons.length; indexB++)
+					for (var indexB = 0; indexB < _content_control_buttons_len; indexB++)
 					{
 						if (posX > _posR && posX < (_posR + 20 / dKoefX) && posY > _y && posY < _b)
 						{
@@ -8075,6 +8213,8 @@ function CDrawingDocument()
 	this.checkMouseMove_Drawing = function (pos)
 	{
 		var oWordControl = this.m_oWordControl;
+        var isNoButtons = oWordControl.m_oLogicDocument ? oWordControl.m_oLogicDocument.IsFillingFormMode() : false;
+
 		if (this.TableOutlineDr.bIsTracked)
 		{
 			this.TableOutlineDr.checkMouseMove(global_mouseEvent.X, global_mouseEvent.Y, oWordControl);
@@ -8204,6 +8344,10 @@ function CDrawingDocument()
 
 		if (_content_control && pos.Page == _content_control.getPage())
 		{
+            var _content_control_buttons_len = _content_control.Buttons.length;
+            if (isNoButtons)
+                _content_control_buttons_len = 0;
+
 			if (1 == this.ContentControlObjectState)
 			{
 				if (pos.Page == this.ContentControlSmallChangesCheck.Page &&
@@ -8240,7 +8384,7 @@ function CDrawingDocument()
 			var _r = rect.X;
 			var _b = rect.Y + (20 / dKoefY);
 
-			if (_content_control.Name != "" || 0 != _content_control.Buttons.length)
+			if (_content_control.Name != "" || 0 != _content_control_buttons_len)
 			{
 				_x = rect.X;
 				_y = rect.Y - (20 / dKoefY);
@@ -8283,7 +8427,7 @@ function CDrawingDocument()
 				oWordControl.m_oApi.sync_MouseMoveEndCallback();
 				return true;
 			}
-			else if (_content_control.NameButtonAdvanced && posX > _r && posX < (_r + _content_control.NameWidth / dKoefX) && posY > _y && posY < _b)
+			else if (_content_control.NameButtonAdvanced && !isNoButtons && posX > _r && posX < (_r + _content_control.NameWidth / dKoefX) && posY > _y && posY < _b)
 			{
 				_content_control.HoverButtonIndex = -1;
 				oWordControl.ShowOverlay();
@@ -8299,7 +8443,7 @@ function CDrawingDocument()
 			else
 			{
 				var _posR = _r + _content_control.NameWidth / dKoefX;
-				for (var indexB = 0; indexB < _content_control.Buttons.length; indexB++)
+				for (var indexB = 0; indexB < _content_control_buttons_len; indexB++)
 				{
 					if (posX > _posR && posX < (_posR + 20 / dKoefX) && posY > _y && posY < _b)
 					{
@@ -8813,6 +8957,98 @@ function CDrawingDocument()
 
 		return null;
 	};
+
+	// print selection
+    this.GenerateSelectionPrint = function ()
+    {
+        History.TurnOff();
+        g_oTableId.m_bTurnOff = true;
+
+        this.printedDocument = null;
+        try {
+            var _drDocument = {
+                m_lCountCalculatePages : 0,
+                m_lPagesCount : 0,
+                m_arrPages : [],
+
+                TargetStart : function () {},
+                TargetEnd : function () {},
+                TargetShow : function () {},
+                GetVisibleMMHeight : function () { return editor.WordControl.m_oDrawingDocument.GetVisibleMMHeight(); },
+                UpdateTargetTransform : function () {},
+                SetTextSelectionOutline : function () {},
+                ClearCachePages : function () {},
+                FirePaint : function () {},
+                OnStartRecalculate : function (pagesCount) {
+                    this.m_lCountCalculatePages = pagesCount;
+                    this.m_arrPages = [];
+                },
+                OnRecalculatePage : function (pageIndex, pageObject) {
+                    this.m_lCountCalculatePages = pageIndex + 1;
+
+                    this.m_arrPages[pageIndex] = {
+                        width_mm : pageObject.Width,
+                        height_mm : pageObject.Height
+                    };
+                },
+                OnEndRecalculate : function (isFull, isBreak) {
+                    if (isFull && !isBreak)
+                        this.m_lPagesCount = this.m_lCountCalculatePages;
+                }
+            };
+
+            var _srcDoc = this.m_oLogicDocument;
+            var _document = new CDocument(_drDocument, false);
+            var _srcDrawngObjects = _srcDoc.DrawingObjects;
+            _srcDoc.DrawingObjects = _document.DrawingObjects;
+
+            var _selection = _srcDoc.GetSelectedContent(false);
+            _drDocument.m_oLogicDocument = _document;
+            AscCommon.History.Document = _srcDoc;
+            var _paragraph = _document.GetCurrentParagraph();
+            _paragraph.bFromDocument = true;
+            _paragraph.LogicDocument = _document;
+            var _nearpos = null;
+            if (null != _paragraph) {
+                _nearpos = {Paragraph: _paragraph, ContentPos: _paragraph.Get_ParaContentPos(false, false)};
+                _paragraph.Check_NearestPos(_nearpos);
+            }
+            _document.Numbering = _srcDoc.Numbering;
+            _document.Styles = _srcDoc.Styles.Copy();
+            _document.theme = _srcDoc.theme.createDuplicate();
+            _document.clrSchemeMap = _srcDoc.clrSchemeMap.createDuplicate();
+
+            var oLastSectPr = _selection.GetLastSection();
+			if (oLastSectPr)
+				_document.SectPr.Copy(oLastSectPr, true);
+
+            editor.WordControl.m_oLogicDocument = _document;
+            editor.WordControl.m_oDrawingDocument = _drDocument;
+
+            for (var i = 0; i < _selection.DrawingObjects.length; i++)
+                _document.DrawingObjects.addGraphicObject(_selection.DrawingObjects[i]);
+
+            _document.Insert_Content(_selection, _nearpos);
+            _document.UpdateAllSectionsInfo();
+
+            var old = window["NATIVE_EDITOR_ENJINE_SYNC_RECALC"];
+            window["NATIVE_EDITOR_ENJINE_SYNC_RECALC"] = true;
+            _document.RecalculateFromStart(false); // sync
+            window["NATIVE_EDITOR_ENJINE_SYNC_RECALC"] = old;
+
+            editor.WordControl.m_oLogicDocument = _srcDoc;
+            editor.WordControl.m_oDrawingDocument = this;
+            _srcDoc.DrawingObjects = _srcDrawngObjects;
+
+            this.printedDocument = _document;
+        }
+        catch (err)
+        {
+        }
+
+        g_oTableId.m_bTurnOff = false;
+        History.TurnOn();
+    };
 }
 function CStylesPainter()
 {
@@ -8976,7 +9212,7 @@ CStylesPainter.prototype =
 			var style = styles[i];
 			if (style.IsExpressStyle(DocumentStyles) && null === DocumentStyles.GetStyleIdByName(style.Name))
 			{
-				this.drawStyle(graphics, style, AscCommon.translateManager.getValue(style.Name));
+				this.drawStyle(_api, graphics, style, AscCommon.translateManager.getValue(style.Name));
 				this.defaultStyles.push(new AscCommon.CStyleImage(style.Name, AscCommon.c_oAscStyleImage.Default,
 					_canvas.toDataURL("image/png"), style.uiPriority));
 			}
@@ -9040,7 +9276,7 @@ CStylesPainter.prototype =
 				_dr_style.Name = style.Name;
 				_dr_style.Id = i;
 
-				this.drawStyle(graphics, _dr_style,
+				this.drawStyle(_api, graphics, _dr_style,
 					__Styles.Is_StyleDefault(style.Name) ? AscCommon.translateManager.getValue(style.Name) : style.Name);
 				this.docStyles[cur_index] = new AscCommon.CStyleImage(style.Name, AscCommon.c_oAscStyleImage.Document,
 					_canvas.toDataURL("image/png"), style.uiPriority);
@@ -9072,7 +9308,7 @@ CStylesPainter.prototype =
 			}
 		}
 	},
-	drawStyle: function (graphics, style, styleName)
+	drawStyle: function (_api, graphics, style, styleName)
 	{
 		var ctx = graphics.m_oContext;
 		ctx.fillStyle = "#FFFFFF";
@@ -9161,6 +9397,12 @@ CStylesPainter.prototype =
 
 			var oldDefTabStop = AscCommonWord.Default_Tab_Stop;
 			AscCommonWord.Default_Tab_Stop = 1;
+			var isShowParaMarks = false;
+			if (_api)
+			{
+				isShowParaMarks = _api.get_ShowParaMarks();
+				_api.put_ShowParaMarks(false);
+			}
 
 			var hdr = new CHeaderFooter(editor.WordControl.m_oLogicDocument.HdrFtr, editor.WordControl.m_oLogicDocument, editor.WordControl.m_oDrawingDocument, AscCommon.hdrftr_Header);
 			var _dc = hdr.Content;//new CDocumentContent(editor.WordControl.m_oLogicDocument, editor.WordControl.m_oDrawingDocument, 0, 0, 0, 0, false, true, false);
@@ -9260,6 +9502,9 @@ CStylesPainter.prototype =
 			par.Draw(0, graphics);
 
 			graphics.restore();
+
+			if (_api)
+				_api.put_ShowParaMarks(isShowParaMarks);
 
 			AscCommonWord.Default_Tab_Stop = oldDefTabStop;
 

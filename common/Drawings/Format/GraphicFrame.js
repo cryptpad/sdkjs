@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2018
+ * (c) Copyright Ascensio System SIA 2010-2019
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,8 +12,8 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at Lubanas st. 125a-25, Riga, Latvia,
- * EU, LV-1021.
+ * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
  * of the Program must display Appropriate Legal Notices, as required under
@@ -391,7 +391,7 @@ CGraphicFrame.prototype.recalculateTable = function () {
         this.graphicObject.Set_PositionH(Asc.c_oAscHAnchor.Page, false, 0, false);
         this.graphicObject.Set_PositionV(Asc.c_oAscVAnchor.Page, false, 0, false);
         this.graphicObject.Parent = this;
-        this.graphicObject.Reset(0, 0, this.spPr.xfrm.extX, 10000, 0);
+        this.graphicObject.Reset(0, 0, this.extX, 10000, 0);
         this.graphicObject.Recalculate_Page(0);
     }
 };
@@ -401,6 +401,16 @@ CGraphicFrame.prototype.recalculate = function()
         if(this.bDeleted  || !this.parent)
             return;
         AscFormat.ExecuteNoHistory(function(){
+
+            if(this.recalcInfo.recalculateTransform)
+            {
+                this.recalculateTransform();
+                this.recalculateSnapArrays();
+                this.recalcInfo.recalculateTransform = false;
+                this.transformText = this.transform;
+                this.invertTransformText = this.invertTransform;
+                this.cachedImage = null;
+            }
             if(this.recalcInfo.recalculateTable)
             {
                 this.recalculateTable();
@@ -410,16 +420,6 @@ CGraphicFrame.prototype.recalculate = function()
             {
                 this.recalculateSizes();
                 this.recalcInfo.recalculateSizes = false;
-
-            }
-            if(this.recalcInfo.recalculateTransform)
-            {
-                this.recalculateTransform();
-            this.recalculateSnapArrays();
-                this.recalcInfo.recalculateTransform = false;
-                this.transformText = this.transform;
-                this.invertTransformText = this.invertTransform;
-                this.cachedImage = null;
                 this.bounds.l = this.x;
                 this.bounds.t = this.y;
                 this.bounds.r = this.x + this.extX;
@@ -434,19 +434,17 @@ CGraphicFrame.prototype.recalculate = function()
 };
 
 CGraphicFrame.prototype.recalculateSizes = function()
+{
+    if(this.graphicObject)
     {
-        if(this.graphicObject)
-        {
-            this.graphicObject.XLimit -= this.graphicObject.X;
-            this.graphicObject.X = 0;
-            this.graphicObject.Y = 0;
-            this.graphicObject.X_origin = 0;
-            var _page_bounds = this.graphicObject.Get_PageBounds(0);
-            this.spPr.xfrm.extY = _page_bounds.Bottom - _page_bounds.Top;
-            this.spPr.xfrm.extX = _page_bounds.Right - _page_bounds.Left;
-            this.extX =  this.spPr.xfrm.extX;
-            this.extY =  this.spPr.xfrm.extY;
-        }
+        this.graphicObject.XLimit -= this.graphicObject.X;
+        this.graphicObject.X = 0;
+        this.graphicObject.Y = 0;
+        this.graphicObject.X_origin = 0;
+        var _page_bounds = this.graphicObject.Get_PageBounds(0);
+        this.extX = _page_bounds.Right - _page_bounds.Left;
+        this.extY = _page_bounds.Bottom - _page_bounds.Top;
+    }
 };
 
 CGraphicFrame.prototype.IsSelectedSingleElement = function()
@@ -615,6 +613,9 @@ CGraphicFrame.prototype.getSnapArrays = function(snapX, snapY)
 CGraphicFrame.prototype.hitInInnerArea = function(x, y)
     {
         var invert_transform = this.getInvertTransform();
+        if(!invert_transform){
+            return false;
+        }
         var x_t = invert_transform.TransformPointX(x, y);
         var y_t = invert_transform.TransformPointY(x, y);
         return x_t > 0 && x_t < this.extX && y_t > 0 && y_t < this.extY;
@@ -635,6 +636,9 @@ CGraphicFrame.prototype.getInvertTransform = function()
 CGraphicFrame.prototype.hitInBoundingRect = function(x, y)
     {
         var invert_transform = this.getInvertTransform();
+        if(!invert_transform){
+            return false;
+        }
         var x_t = invert_transform.TransformPointX(x, y);
         var y_t = invert_transform.TransformPointY(x, y);
 
@@ -961,9 +965,9 @@ CGraphicFrame.prototype.applyTextFunction = function(docContentFunction, tableFu
         tableFunction.apply(this.graphicObject, args);
 };
 
-CGraphicFrame.prototype.remove = function(Count, bOnlyText, bRemoveOnlySelection)
+CGraphicFrame.prototype.remove = function(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord)
     {
-        this.graphicObject.Remove(Count, bOnlyText, bRemoveOnlySelection);
+        this.graphicObject.Remove(Count, bOnlyText, bRemoveOnlySelection, bOnTextAdd, isWord);
         this.recalcInfo.recalculateSizes = true;
         this.recalcInfo.recalculateTransform = true;
 };
