@@ -125,10 +125,11 @@ var editor;
 
     this.formulasList = null;	// Список всех формул
 
+	this.openingEnd = {bin: false, xlsxStart: false, xlsx: false, data: null};
+
     if (window.editor == undefined) {
        window.editor = this;
     }
-	this.openingEnd = {bin: false, xlsxStart: false, xlsx: false, data: null};
 
     this._init();
     return this;
@@ -2442,6 +2443,16 @@ var editor;
     // ToDo заменить на общую функцию для всех
     this.asc_addImage();
   };
+  // CRYPTPAD
+  // This method is necessary to add the loaded images to the list of loaded images
+  spreadsheet_api.prototype.asc_addImageCallback = function(res)
+  {
+    g_oDocumentUrls.addImageUrl(res.name, res.url)
+  };
+  spreadsheet_api.prototype.asyncImageEndLoadedBackground = function(_image)
+  {
+  };
+
   spreadsheet_api.prototype._addImageUrl = function(urls) {
     var ws = this.wb.getWorksheet();
     if (ws) {
