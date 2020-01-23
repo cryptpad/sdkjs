@@ -128,7 +128,7 @@ var editor;
 	this.openingEnd = {bin: false, xlsxStart: false, xlsx: false, data: null};
 
     if (window.editor == undefined) {
-       window.editor = this;
+       window.editorCell = this;
     }
 
     this._init();
