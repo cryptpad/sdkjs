@@ -311,6 +311,9 @@ CChangesRunAddItem.prototype.private_ReadItem = function(Reader)
 CChangesRunAddItem.prototype.Load = function(Color)
 {
 	var oRun = this.Class;
+
+    if (!oRun.m_oContentChanges) { return; } // XXX CryptPad: Error after checkpoints
+
 	for (var Index = 0, Count = this.Items.length; Index < Count; Index++)
 	{
 		var Pos = oRun.m_oContentChanges.Check(AscCommon.contentchanges_Add, this.PosArray[Index]);
@@ -400,6 +403,8 @@ CChangesRunRemoveItem.prototype.private_ReadItem = function(Reader)
 CChangesRunRemoveItem.prototype.Load = function()
 {
 	var oRun = this.Class;
+
+    if (!oRun.m_oContentChanges) { return; } // XXX CryptPad: Error after checkpoints
 
 	var nLastChangesPos = null;
 	var nChangesCount   = 0;
