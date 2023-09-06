@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2020
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -31,11 +31,6 @@
  */
 
 "use strict";
-/**
- * User: Ilja.Kirillov
- * Date: 02.04.2020
- * Time: 15:50
- */
 
 /**
  * Базовый класс для контент контролов
@@ -490,6 +485,17 @@ CSdtBase.prototype.IsCurrent = function()
 CSdtBase.prototype.SetCurrent = function(isCurrent)
 {
 	this.Current = isCurrent;
+	
+	if (this.IsForm() && this.IsFixedForm())
+	{
+		let logicDocument   = this.GetLogicDocument();
+		let drawingDocument = logicDocument ? logicDocument.GetDrawingDocument() : null;
+		if (drawingDocument && !logicDocument.IsFillingOFormMode())
+		{
+			drawingDocument.OnDrawContentControl(null, AscCommon.ContentControlTrack.In);
+			drawingDocument.OnDrawContentControl(null, AscCommon.ContentControlTrack.Hover);
+		}
+	}
 };
 /**
  * Специальная функция, которая обновляет текстовые настройки у плейсхолдера для форм
@@ -719,12 +725,40 @@ CSdtBase.prototype.GetAllSubForms = function(arrForms)
 	return arrForms;
 };
 /**
+ * Получаем порядковый номер данного подполя в родительском сложном поле
+ * Если данный объект не является полем или подполем в сложном поле, то вернется -1
+ * @returns {number}
+ */
+CSdtBase.prototype.GetSubFormIndex = function()
+{
+	if (!this.IsForm())
+		return -1;
+	
+	let mainForm = this.GetMainForm();
+	if (this === mainForm)
+		return -1;
+	
+	let subForms = mainForm.GetAllSubForms();
+	for (let index = 0, count = subForms.length; index < count; ++index)
+	{
+		if (subForms[index] === this)
+			return index;
+	}
+	
+	return -1;
+};
+/**
  * Провяеряем является ли данная форма текущей, с учетом того, что она либо сама является составной формой, либо
  * лежит в составной
  * @returns {boolean}
  */
 CSdtBase.prototype.IsCurrentComplexForm = function()
 {
+	// Текущая форма есть только в режиме заполнения. В режиме редактирования не даем заполнять форму
+	let logicDocument = this.GetLogicDocument();
+	if (logicDocument && logicDocument.IsDocumentEditor() && !logicDocument.IsFillingFormMode())
+		return false;
+	
 	if (this.IsCurrent())
 		return true;
 
@@ -866,6 +900,10 @@ CSdtBase.prototype.IsBuiltInUnique = function()
 {
 	return (this.Pr && this.Pr.DocPartObj && true === this.Pr.DocPartObj.Unique);
 };
+CSdtBase.prototype.GetBuiltInGallery = function()
+{
+	return (this.Pr && this.Pr.DocPartObj && this.Pr.DocPartObj.Gallery ? this.Pr.DocPartObj.Gallery : undefined)
+};
 CSdtBase.prototype.GetInnerText = function()
 {
 	return "";
@@ -1001,3 +1039,31 @@ CSdtBase.prototype.CheckOFormUserMaster = function()
 	
 	return logicDocument.CheckOFormUserMaster(this);
 };
+/**
+ * Проверяем, можно ли ставить курсор внутрь
+ */
+CSdtBase.prototype.CanPlaceCursorInside = function()
+{
+	let logicDocument = this.GetLogicDocument();
+	return (!this.IsPicture() && (!this.IsForm() || this.IsComplexForm() || !logicDocument || !logicDocument.IsDocumentEditor() || logicDocument.IsFillingFormMode()))
+};
+CSdtBase.prototype.SkipFillingFormModeCheck = function(isSkip)
+{
+};
+/**
+ * Нужно ли рисовать рамку вокруг контрола
+ * @returns {boolean}
+ */
+CSdtBase.prototype.IsHideContentControlTrack = function()
+{
+	let logicDocument = this.GetLogicDocument();
+	if (logicDocument && logicDocument.IsForceHideContentControlTrack())
+		return true;
+	
+	if (this.GetBuiltInGallery()
+		&& !this.IsBuiltInTableOfContents())
+		return true;
+	
+	return Asc.c_oAscSdtAppearance.Hidden === this.GetAppearance();
+};
+

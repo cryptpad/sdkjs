@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -690,15 +690,29 @@ ChartPreviewManager.prototype.getChartPreviews = function(chartType, arrId, bEmp
 	SmartArtPreviewDrawer.prototype.constructor = SmartArtPreviewDrawer;
 
 	SmartArtPreviewDrawer.prototype.Begin = function (nTypeOfSectionLoad) {
+
+		let oThis = this;
 		const oApi = Asc.editor || editor;
-		if (oApi && AscCommon.g_oBinarySmartArts) {
-			if (AscFormat.isRealNumber(nTypeOfSectionLoad)) {
-				const arrPreviewObjects = Asc.c_oAscSmartArtSections[nTypeOfSectionLoad].map(function (nTypeOfSmartArt) {
-					return new CSmartArtPreviewInfo(nTypeOfSmartArt, nTypeOfSectionLoad);
-				});
-				this.queue = this.queue.concat(arrPreviewObjects);
-				AscCommon.CActionOnTimerBase.prototype.Begin.call(this);
+		if(!oApi) {
+			return;
+		}
+		let fCallback = function (){
+			if (AscCommon.g_oBinarySmartArts) {
+				if (AscFormat.isRealNumber(nTypeOfSectionLoad)) {
+					const arrPreviewObjects = Asc.c_oAscSmartArtSections[nTypeOfSectionLoad].map(function (nTypeOfSmartArt) {
+						return new CSmartArtPreviewInfo(nTypeOfSmartArt, nTypeOfSectionLoad);
+					});
+					oThis.queue = oThis.queue.concat(arrPreviewObjects);
+					AscCommon.CActionOnTimerBase.prototype.Begin.call(oThis);
+				}
 			}
+		};
+		if(!AscCommon.g_oBinarySmartArts) {
+			AscCommon.loadSmartArtBinary(fCallback, function (err) {
+			});
+		}
+		else {
+			fCallback();
 		}
 	};
 	SmartArtPreviewDrawer.prototype.OnBegin = function () {
@@ -1140,10 +1154,7 @@ TextArtPreviewManager.prototype.getShapeByPrst = function(prst)
 
 	var oBodypr = oShape.getBodyPr().createDuplicate();
 	oBodypr.prstTxWarp = AscFormat.CreatePrstTxWarpGeometry(prst);
-	oBodypr.lIns = 2.54;
-	oBodypr.tIns = 2.54;
-	oBodypr.rIns = 2.54;
-	oBodypr.bIns = 2.54;
+	oBodypr.setDefaultInsets();
 	if(!oShape.bWordShape)
 	{
 		oShape.txBody.setBodyPr(oBodypr);

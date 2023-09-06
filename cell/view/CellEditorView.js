@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -43,9 +43,9 @@
 	 * -----------------------------------------------------------------------------
 	 */
 	var asc = window["Asc"];
-	
+
 	var AscBrowser = AscCommon.AscBrowser;
-	
+
 	var cElementType = AscCommonExcel.cElementType;
 	var c_oAscCellEditorSelectState = AscCommonExcel.c_oAscCellEditorSelectState;
 	var c_oAscCellEditorState = asc.c_oAscCellEditorState;
@@ -528,6 +528,46 @@
 		}
 	};
 
+	CellEditor.prototype.changeTextCase = function (val) {
+		if (this.isFormula()) {
+			return;
+		}
+		var t = this, opt = t.options;
+
+		if (t.selectionBegin !== t.selectionEnd) {
+			let begin = Math.min(t.selectionBegin, t.selectionEnd);
+			let end = Math.max(t.selectionBegin, t.selectionEnd);
+
+			let oNewText = AscCommonExcel.changeTextCase(opt.fragments, val, begin, end);
+			if (oNewText && oNewText.fragmentsMap) {
+				this._changeFragments(oNewText.fragmentsMap);
+			}
+		}
+	};
+
+	CellEditor.prototype._changeFragments = function (fragmentsMap) {
+		let opt = this.options;
+		if (fragmentsMap) {
+			let _undoFragments = {};
+			for (let i in fragmentsMap) {
+				if(fragmentsMap.hasOwnProperty(i)) {
+					_undoFragments[i] = opt.fragments[i].clone();
+					opt.fragments[i] = fragmentsMap[i];
+				}
+			}
+
+			if (!this.undoMode) {
+				// save info to undo/redo
+				this.undoList.push({fn: this._changeFragments, args: [_undoFragments]});
+			}
+
+			this._update();
+			// Обновляем выделение
+			this._cleanSelection();
+			this._drawSelection();
+		}
+	};
+
 	CellEditor.prototype.empty = function ( options ) {
 		// Чистка для редактирования только All
 		if ( Asc.c_oAscCleanOptions.All !== options ) {
@@ -579,7 +619,7 @@
 			}
 			res = true;
 		}
-		
+
 		return res;
 	};
 
@@ -612,7 +652,7 @@
 		this.skipTLUpdate = true;
 	};
 
-	CellEditor.prototype.insertFormula = function (functionName, isDefName) {
+	CellEditor.prototype.insertFormula = function (functionName, isDefName, sRange) {
 		this.skipTLUpdate = false;
 
 		// ToDo check selection formula in wizard for delete
@@ -631,7 +671,7 @@
 		if (functionName) {
 			addText += functionName;
 			if (!isDefName) {
-				addText += '()';
+				addText += sRange ? '(' + sRange + ')' : '()';
 			}
 		}
 
@@ -650,7 +690,7 @@
 	};
 
 	CellEditor.prototype.updateWizardMode = function (mode) {
-		this._updateCursorStyle(mode ? AscCommonExcel.kCurCells : this.defaults.cursorShape);
+		this._updateCursorStyle(mode ? AscCommon.Cursors.CellCur : this.defaults.cursorShape);
 	};
 
 	CellEditor.prototype.move = function () {
@@ -817,7 +857,7 @@
 
 	// Private
 
-	CellEditor.prototype._setOptions = function ( options ) {
+	CellEditor.prototype._setOptions = function (options) {
 		var opt = this.options = options;
 		var ctx = this.drawingCtx;
 		var u = ctx.getUnits();
@@ -826,17 +866,17 @@
 		this._updateTextAlign();
 		this.textFlags.shrinkToFit = false;
 
-		this._cleanFragments( opt.fragments );
-		this.textRender.setString( opt.fragments, this.textFlags );
+		this._cleanFragments(opt.fragments);
+		this.textRender.setString(opt.fragments, this.textFlags);
 		this.newTextFormat = null;
 
-		if ( opt.zoom > 0 ) {
-			this.overlayCtx.setFont( this.drawingCtx.getFont() );
-			this.changeZoom( opt.zoom );
+		if (opt.zoom > 0) {
+			this.overlayCtx.setFont(this.drawingCtx.getFont());
+			this.changeZoom(opt.zoom);
 		}
 
-		this.kx = asc_getcvt( u, 0/*px*/, ctx.getPPIX() );
-		this.ky = asc_getcvt( u, 0/*px*/, ctx.getPPIY() );
+		this.kx = asc_getcvt(u, 0/*px*/, ctx.getPPIX());
+		this.ky = asc_getcvt(u, 0/*px*/, ctx.getPPIY());
 
 		this.sides = opt.getSides();
 
@@ -1391,7 +1431,7 @@
 	CellEditor.prototype._showCanvas = function () {
 		this.canvasOuterStyle.display = 'block';
 	};
-	
+
 	CellEditor.prototype._hideCanvas = function () {
 		this.canvasOuterStyle.display = 'none';
 	};
@@ -1810,7 +1850,8 @@
 	};
 
 	CellEditor.prototype._getContentWidth = function () {
-		return this.right - this.left - 2 * this.defaults.padding + 1/*px*/;
+		//remove 1 px offset. without cell editor no 1 px offset
+		return this.right - this.left - 2 * this.defaults.padding /*+ 1*//*px*/;
 	};
 
 	CellEditor.prototype._getContentHeight = function () {
@@ -2057,15 +2098,19 @@
 		return pos === end ? {index: i - 1, begin: begin, end: end} : undefined;
 	};
 
-	CellEditor.prototype._findFragmentToInsertInto = function ( pos ) {
-		var opt = this.options, i, begin, end;
+	CellEditor.prototype._findFragmentToInsertInto = function ( pos, fragments ) {
+		var i, begin, end;
 
-		for ( i = 0, begin = 0; i < opt.fragments.length; ++i ) {
-			end = begin + opt.fragments[i].getCharCodesLength();
+		if (!fragments) {
+			fragments = this.options.fragments;
+		}
+
+		for ( i = 0, begin = 0; i < fragments.length; ++i ) {
+			end = begin + fragments[i].getCharCodesLength();
 			if ( pos >= begin && pos <= end ) {
 				return {index: i, begin: begin, end: end};
 			}
-			if ( i < opt.fragments.length - 1 ) {
+			if ( i < fragments.length - 1 ) {
 				begin = end;
 			}
 		}
@@ -2159,19 +2204,23 @@
 		}
 	};
 
-	CellEditor.prototype._mergeFragments = function () {
-		var t = this, opt = t.options, i;
+	CellEditor.prototype._mergeFragments = function (fragments) {
+		var i;
 
-		for (i = 0; i < opt.fragments.length;) {
-			if (opt.fragments[i].getCharCodesLength() < 1 && opt.fragments.length > 1) {
-				opt.fragments.splice(i, 1);
+		if (!fragments) {
+			fragments = this.options.fragments;
+		}
+
+		for (i = 0; i < fragments.length;) {
+			if (fragments[i].getCharCodesLength() < 1 && fragments.length > 1) {
+				fragments.splice(i, 1);
 				continue;
 			}
-			if (i < opt.fragments.length - 1) {
-				var fr = opt.fragments[i];
-				var nextFr = opt.fragments[i + 1];
+			if (i < fragments.length - 1) {
+				var fr = fragments[i];
+				var nextFr = fragments[i + 1];
 				if (fr.format.isEqual(nextFr.format)) {
-					opt.fragments.splice(i, 2, new Fragment({format: fr.format, charCodes: fr.getCharCodes().concat(nextFr.getCharCodes())}));
+					fragments.splice(i, 2, new Fragment({format: fr.format, charCodes: fr.getCharCodes().concat(nextFr.getCharCodes())}));
 					continue;
 				}
 			}
@@ -2273,6 +2322,18 @@
 			len = AscCommonExcel.getFragmentsLength(action.args[0]);
 			list2.push( {fn: t._removeChars, args: [pos, len], isRange: action.isRange} );
 		}
+		else if ( action.fn === t._changeFragments ) {
+			let _fragments = action.args[0];
+			let _redoFragments = {};
+			for (let i in _fragments) {
+				if (_fragments.hasOwnProperty(i)) {
+					if (this.options.fragments[i]) {
+						_redoFragments[i] = this.options.fragments[i].clone();
+					}
+				}
+			}
+			list2.push( {fn: t._changeFragments, args: [_redoFragments]} );
+		}
 		else {
 			return;
 		}
@@ -2346,6 +2407,7 @@
 	CellEditor.prototype._onWindowKeyDown = function (event, isInput) {
 		var t = this, kind = undefined, hieroglyph = false;
 		var ctrlKey = !AscCommon.getAltGr(event) && (event.metaKey || event.ctrlKey);
+		const bIsMacOs = AscCommon.AscBrowser.isMacOs;
 
 		if (this.handlers.trigger('getWizard') || !t.isOpened || (!isInput && !t.enableKeyEvents && event.emulated !== true)) {
 			return true;
@@ -2422,7 +2484,8 @@
 						t._syncEditors();
 					}
 				}
-				t._removeChars(ctrlKey ? kPrevWord : kPrevChar);
+				const bIsWord = bIsMacOs ? event.altKey : ctrlKey;
+				t._removeChars(bIsWord ? kPrevWord : kPrevChar);
 				return false;
 
 			case 32:  // "space"
@@ -2484,8 +2547,17 @@
 				if (hieroglyph) {
 					t._syncEditors();
 				}
-				kind = ctrlKey ? kPrevWord : kPrevChar;
-				event.shiftKey ? t._selectChars(kind) : t._moveCursor(kind);
+				if (bIsMacOs && ctrlKey)
+				{
+					event.shiftKey ? t._selectChars(kBeginOfLine) : t._moveCursor(kBeginOfLine);
+				}
+				else
+				{
+					const bWord = bIsMacOs ? event.altKey : ctrlKey;
+					kind = bWord ? kPrevWord : kPrevChar;
+					event.shiftKey ? t._selectChars(kind) : t._moveCursor(kind);
+				}
+
 				return false;
 
 			case 38:  // "up"
@@ -2519,8 +2591,16 @@
 				if (hieroglyph) {
 					t._syncEditors();
 				}
-				kind = ctrlKey ? kNextWord : kNextChar;
-				event.shiftKey ? t._selectChars(kind) : t._moveCursor(kind);
+				if (bIsMacOs && ctrlKey)
+				{
+					event.shiftKey ? t._selectChars(kEndOfLine) : t._moveCursor(kEndOfLine);
+				}
+				else
+				{
+					const bWord = bIsMacOs ? event.altKey : ctrlKey;
+					kind = bWord ? kNextWord : kNextChar;
+					event.shiftKey ? t._selectChars(kind) : t._moveCursor(kind);
+				}
 				return false;
 
 			case 40:  // "down"
@@ -2656,6 +2736,13 @@
 				}
 				break;
 
+			case 110: //NumpadDecimal
+				var api = window["Asc"]["editor"];
+				t._addChars(api.asc_getDecimalSeparator());
+				event.stopPropagation();
+				event.preventDefault();
+				return false;
+
 			case 113: // F2
 				if (AscBrowser.isOpera) {
 					event.stopPropagation();
@@ -2675,6 +2762,7 @@
 				event.preventDefault();
 				return false;
 
+			case 59:
 			case 186: // ctrl + (shift) + ;
 				if (ctrlKey) {
 					var api = window["Asc"]["editor"];
@@ -2893,6 +2981,10 @@
 		//TODO оставляю текст!
 		var t = this;
 		if (!this.handlers.trigger("canEdit") || this.loadFonts) {
+			return true;
+		}
+		if (this.handlers.trigger("isUserProtectActiveCell")) {
+			this.handlers.trigger("asc_onError", Asc.c_oAscError.ID.ProtectedRangeByOtherUser, c_oAscError.Level.NoCritical);
 			return true;
 		}
 		if (this.handlers.trigger("isProtectActiveCell")) {

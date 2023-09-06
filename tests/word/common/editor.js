@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2022
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -61,7 +61,9 @@
 		FirePaint : function(){},
 		GetMMPerDot : function(value){return value / this.GetDotsPerMM(1);},
 		GetDotsPerMM : function(value) {return 72;},
-		EndTrackTable : function() {}
+		EndTrackTable : function() {},
+		SetCurrentPage : function(pageNum) {},
+		SelectClear : function() {}
 	};
 
 	drawingDocument.CanvasHit = document.createElement('canvas');
@@ -86,13 +88,25 @@
 	editor.asc_GetRevisionsChangesStack = function(){return []};
 	editor.private_GetLogicDocument = function(){return this.WordControl.m_oLogicDocument;};
 	editor.asc_getKeyboardLanguage = function(){return -1;};
+	editor.GenerateStyles = function(){};
+	editor.sync_BeginCatchSelectedElements = function(){};
+	editor.sync_EndCatchSelectedElements = function(){};
+	editor.ClearPropObjCallback = function(){};
+	editor.Update_ParaTab = function(){};
+	editor.UpdateParagraphProp = function(){};
+	editor.UpdateTextPr = function(){};
+	editor.sync_CanAddHyperlinkCallback = function(){};
+	editor.sync_PageOrientCallback = function(){};
+	editor.sync_DocSizeCallback = function(){};
+	editor.sync_ColumnsPropsCallback = function(){};
+	editor.sync_LineNumbersPropsCollback = function(){};
+	editor.sync_SectionPropsCallback = function(){};
 	
-	
-
 	//--------------------------------------------------------export----------------------------------------------------
 	AscTest.DrawingDocument = drawingDocument;
 	AscTest.Editor          = editor;
 
 	window.editor = editor;
+	Asc['editor'] = Asc.editor = editor;
 
 })(window);

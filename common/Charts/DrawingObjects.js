@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -1785,7 +1785,6 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
     _this.drawingDocument = null;
     _this.asyncImageEndLoaded = null;
     _this.CompositeInput = null;
-	_this.mathTrackHandler = null;
 
     _this.lastX = 0;
     _this.lastY = 0;
@@ -1976,23 +1975,40 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         _this.drawingDocument.TargetHtmlElement = document.getElementById('id_target_cursor');
         _this.drawingDocument.InitGuiCanvasShape(api.shapeElementId);
         _this.controller = new AscFormat.DrawingObjectsController(_this);
-	    _this.mathTrackHandler = new AscWord.CMathTrackHandler(_this.drawingDocument, api);
         _this.canEdit = function() { return api.canEdit(); };
 
         aImagesSync = [];
 
-        aObjects = currentSheet.model.Drawings;
-        for (let i = 0; currentSheet.model.Drawings && (i < currentSheet.model.Drawings.length); i++)
+        const oWS = currentSheet.model;
+        aObjects = oWS.Drawings;
+        let oGraphic;
+        for (let i = 0; aObjects && (i < aObjects.length); i++)
         {
             aObjects[i] = _this.cloneDrawingObject(aObjects[i]);
             const drawingObject = aObjects[i];
             // Check drawing area
             drawingObject.drawingArea = _this.drawingArea;
             drawingObject.worksheet = currentSheet;
-            drawingObject.graphicObject.setDrawingBase(drawingObject);
-            drawingObject.graphicObject.setDrawingObjects(_this);
-            drawingObject.graphicObject.getAllRasterImages(aImagesSync);
+            oGraphic = drawingObject.graphicObject;
+            oGraphic.setDrawingBase(drawingObject);
+            oGraphic.setDrawingObjects(_this);
+            oGraphic.getAllRasterImages(aImagesSync);
         }
+        aImagesSync = _this.checkImageBullets(currentSheet, aImagesSync);
+        const oLegacyDrawing = oWS.legacyDrawingHF;
+        if(oLegacyDrawing)
+        {
+            const aLegacyDrawings = oLegacyDrawing.drawings;
+            for(let nDrawing = 0; nDrawing < aLegacyDrawings.length; ++nDrawing)
+            {
+                let oLegacyDrawing = aLegacyDrawings[nDrawing];
+                let oGraphic = oLegacyDrawing.graphicObject;
+                oGraphic.getAllRasterImages(aImagesSync);
+            }
+        }
+
+
+
         aImagesSync = _this.checkImageBullets(currentSheet, aImagesSync);
 
         for(let i = 0; i < aImagesSync.length; ++i)
@@ -2272,7 +2288,7 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         _this.OnUpdateOverlay();
         _this.controller.updateSelectionState(true);
         AscCommon.CollaborativeEditing.Update_ForeignCursorsPositions();
-		this.mathTrackHandler.Update();
+		Asc.editor.wbModel.mathTrackHandler.Update();
     };
 
     _this.print = function(oOptions) {
@@ -4299,27 +4315,23 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
         nX *= nPXtoMM;
         nY *= nPXtoMM;
 
-        const oRet = oDrawingDocument.placeholders.onPointerMove({X: nX, Y: nY, Page: nPage}, oRect, oContext.canvas.width * nPXtoMM, oContext.canvas.height * nPXtoMM);
-        if (oRet) {
-            return {cursor: "default"};
-        }
-        return null;
+        return oDrawingDocument.placeholders.onPointerMove({X: nX, Y: nY, Page: nPage}, oRect, oContext.canvas.width * nPXtoMM, oContext.canvas.height * nPXtoMM);
     };
     
     _this.checkCursorDrawingObject = function(x, y) {
 
-        var offsets = _this.drawingArea.getOffsets(x, y);
-       // console.log('getOffsets: ' + x + ':' + y);
+        let offsets = _this.drawingArea.getOffsets(x, y);
+	    let objectInfo = null;
+	    let oApi = Asc.editor || editor;
         if ( offsets ) {
-            var objectInfo = { cursor: null, id: null, object: null };
-            var graphicObjectInfo = _this.controller.isPointInDrawingObjects( pxToMm(x - offsets.x), pxToMm(y - offsets.y) );
-           // console.log('isPointInDrawingObjects: ' + pxToMm(x - offsets.x) + ':' + pxToMm(y - offsets.y));
+            let graphicObjectInfo = _this.controller.isPointInDrawingObjects( pxToMm(x - offsets.x), pxToMm(y - offsets.y) );
+
             if ( graphicObjectInfo && graphicObjectInfo.objectId ) {
+	            objectInfo = { cursor: null, id: null, object: null };
                 objectInfo.object = _this.getDrawingBase(graphicObjectInfo.objectId);
-                if(objectInfo.object){
+                if(objectInfo.object) {
                     objectInfo.id = graphicObjectInfo.objectId;
-                    var sCursorType = graphicObjectInfo.cursorType;
-                    var oApi = Asc.editor || editor;
+                    let sCursorType = graphicObjectInfo.cursorType;
                     if(oApi) {
                         if(!oApi.isShowShapeAdjustments()) {
                             if(sCursorType !== "text") {
@@ -4332,13 +4344,23 @@ CSparklineView.prototype.setMinMaxValAx = function(minVal, maxVal, oSparklineGro
                     objectInfo.macro = graphicObjectInfo.macro;
                     objectInfo.tooltip = graphicObjectInfo.tooltip;
                 }
-                else{
-                    return null;
-                }
-                return objectInfo;
             }
         }
-        return null;
+		if(oApi.isFormatPainterOn()) {
+			if(objectInfo) {
+				let oData = oApi.getFormatPainterData();
+				if(oData && oData.isDrawingData()) {
+					objectInfo.cursor = AscCommon.Cursors.ShapeCopy;
+				}
+			}
+		}
+
+	    if(oApi.isInkDrawerOn()) {
+		    if(objectInfo) {
+			    objectInfo.cursor = "default";
+		    }
+	    }
+        return objectInfo;
     };
 
     _this.getPositionInfo = function(x, y) {

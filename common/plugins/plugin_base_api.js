@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -85,10 +85,10 @@ window.startPluginApi = function() {
 	/**
      * @typedef {(0 | 1 | 2 | 3)} ContentControlLock
      * A value that defines if it is possible to delete and/or edit the content control or not:
-	 * * <b>0</b> - only deleting
-	 * * <b>1</b> - disable deleting or editing
-	 * * <b>2</b> - only editing
-	 * * <b>3</b> - full access
+	 * * <b>0</b> - only deleting,
+	 * * <b>1</b> - disable deleting or editing,
+	 * * <b>2</b> - only editing,
+	 * * <b>3</b> - full access.
      */
 
 	/**
@@ -125,14 +125,14 @@ window.startPluginApi = function() {
 	 *
 	 * @pr {string[]} icons - Plugin icon image files used in the editors. There can be several scaling types for plugin icons: 100%, 125%, 150%, 175%, 200%, etc.
 	 *
-	 * @pr {boolean} [isViewer=false] - Specifies if the plugin is working when the document is available in the viewer mode only or not.
 	 * @pr {editorType[]} [EditorsSupport=Array.<string>("word","cell","slide")] - The editors which the plugin is available for ("word" - text document editor, "cell" - spreadsheet editor, "slide" - presentation editor).
+	 * @pr {boolean} [isViewer=false] - Specifies if the plugin is working when the document is available in the viewer mode only or not.
+	 * @pr {boolean} [isDisplayedInViewer=true] - Specifies if the plugin will be displayed in the viewer mode as well as in the editor mode (isDisplayedInViewer == true) or in the editor mode only (isDisplayedInViewer == false).
 	 *
 	 * @pr {boolean} isVisual - Specifies if the plugin is visual (will open a window for some action, or introduce some additions to the editor panel interface) or non-visual (will provide a button (or buttons) which is going to apply some transformations or manipulations to the document).
 	 * @pr {boolean} isModal - Specifies if the opened plugin window is modal (used for visual plugins only, and if isInsideMode is not true).
 	 * @pr {boolean} isInsideMode - Specifies if the plugin must be displayed inside the editor panel instead of its own window.
 	 * @pr {boolean} isSystem - Specifies if the plugin is not displayed in the editor interface and is started in the background with the server (or desktop editors start) not interfering with the other plugins, so that they can work simultaneously.
-	 * @pr {boolean} isDisplayedInViewer - Specifies if the plugin will be displayed in the viewer mode as well as in the editor mode (isDisplayedInViewer == true) or in the editor mode only (isDisplayedInViewer == false).
 	 *
 	 * @pr {boolean} initOnSelectionChanged - Specifies if the plugin watches the text selection events in the editor window.
  	 *
@@ -328,12 +328,32 @@ window.startPluginApi = function() {
 	 */
 
 	/**
+	 * Event: onContextMenuShow
+	 * @event Plugin#onContextMenuShow
+	 * @memberof Plugin
+	 * @alias onContextMenuShow
+	 * @description The function called when the context menu has been shown.
+	 * @param {Object} options - Defines the options for the current selection.
+	 * @since 7.4.0
+	 */
+
+	/**
+	 * Event: onContextMenuClick
+	 * @event Plugin#onContextMenuClick
+	 * @memberof Plugin
+	 * @alias onContextMenuClick
+	 * @description The function called when the context menu item has been clicked.
+	 * @param {string} id - Item ID.
+	 * @since 7.4.0
+	 */
+
+	/**
 	 * Event: onCommandCallback
 	 * @event Plugin#onCommandCallback
 	 * @memberof Plugin
 	 * @typeofeditors ["CDE"]
 	 * @alias onCommandCallback
-	 * @description The function called to return the result of the previously executed command. It can be used to return data after executing the {@link Plugin#executeCommand executeCommand} method.
+	 * @description The function called to return the result of the previously executed command. It can be used to return data after executing the {@link Plugin#callCommand callCommand} method.
 	 */
 
 	/**
@@ -379,12 +399,28 @@ window.startPluginApi = function() {
 
     var Plugin = window["Asc"]["plugin"];
 
+	Plugin._checkPluginOnWindow = function(isWindowSupport)
+	{
+		if (this.windowID && !isWindowSupport)
+		{
+			console.log("This method does not allow in window frame");
+			return true;
+		}
+		if (!this.windowID && true === isWindowSupport)
+		{
+			console.log("This method is allow only in window frame");
+			return true;
+		}
+		return false;
+	};
+
 	/***********************************************************************
 	 * METHODS
 	 */
 
 	/**
 	 * executeCommand
+	 * @undocumented
 	 * @memberof Plugin
 	 * @alias executeCommand
 	 * @deprecated Please use callCommand method.
@@ -394,9 +430,9 @@ window.startPluginApi = function() {
 	 * Now this method is mainly used to work with the OLE objects or close the plugin without any other commands.
 	 * It is also retained for using with text so that the previous versions of the plugin remain compatible.
 	 * 
-	 * The *callback* is the result that the command returns. It is an optional parameter. In case it is missing, the {@link Plugin#onCommandCallback window.Asc.plugin.onCommandCallback} function will be used to return the result of the command execution.
+	 * The *callback* is the result that the command returns. It is an optional parameter. In case it is missing, the window.Asc.plugin.onCommandCallback function will be used to return the result of the command execution.
 	 * 
-	 * The second parameter is the JavaScript code for working with <b>ONLYOFFICE Document Builder</b> {@link /docbuilder/basic API} 
+	 * The second parameter is the JavaScript code for working with <b>ONLYOFFICE Document Builder</b> API 
 	 * that allows the plugin to send structured data inserted to the resulting document file (formatted paragraphs, tables, text parts, and separate words, etc.).
 	 * <note><b>ONLYOFFICE Document Builder</b> commands can be only used to create content and insert it to the document editor
 	 * (using the *Api.GetDocument().InsertContent(...)*). This limitation exists due to the co-editing feature in the online editors.
@@ -406,7 +442,7 @@ window.startPluginApi = function() {
 	 * * *Api.asc_addOleObject (window.Asc.plugin.info)* - used to create an OLE object in the document;
 	 * * *Api.asc_editOleObject (window.Asc.plugin.info)* - used to edit the created OLE object.
 	 * 
-	 * When creating/editing the objects, their properties can be passed to the {@link /plugin/info window.Asc.plugin.info} object that defines how the object should look.
+	 * When creating/editing the objects, their properties can be passed to the window.Asc.plugin.info object that defines how the object should look.
 	 * @param {string} type - Defines the type of the command. The *close* is used to close the plugin window after executing the function in the *data* parameter.
 	 * The *command* is used to execute the command and leave the window open waiting for the next command.
      * @param {string} data - Defines the command written in JavaScript code which purpose is to form the structured data which can be inserted to the resulting document file
@@ -416,6 +452,8 @@ window.startPluginApi = function() {
 	 */
 	Plugin.executeCommand = function(type, data, callback)
     {
+		if (this._checkPluginOnWindow() && 0 !== type.indexOf("onmouse")) return;
+
         window.Asc.plugin.info.type = type;
         window.Asc.plugin.info.data = data;
 
@@ -447,6 +485,8 @@ window.startPluginApi = function() {
 	 */
 	Plugin.executeMethod = function(name, params, callback)
     {
+		if (this._checkPluginOnWindow()) return;
+
         if (window.Asc.plugin.isWaitMethod === true)
         {
             if (undefined === this.executeMethodStack)
@@ -491,6 +531,9 @@ window.startPluginApi = function() {
 	 */
 	Plugin.resizeWindow = function(width, height, minW, minH, maxW, maxH)
     {
+		// TODO: resize with window ID
+		if (this._checkPluginOnWindow()) return;
+
         if (undefined === minW) minW = 0;
         if (undefined === minH) minH = 0;
         if (undefined === maxW) maxW = 0;
@@ -518,7 +561,6 @@ window.startPluginApi = function() {
 	 * @memberof Plugin
 	 * @alias callCommand
 	 * @description Defines the method used to send the data back to the editor.
-	 * It replaces the {@link Plugin#executeCommand executeCommand} method when working with texts in order to simplify the syntax of the script that is necessary to pass to the editors using <b>ONLYOFFICE Document Builder</b> {@link /docbuilder/basic API}.
 	 * It allows the plugin to send structured data that can be inserted to the resulting document file (formatted paragraphs, tables, text parts, and separate words, etc.).
 	 * 
 	 * The *callback* is the result that the command returns. It is an optional parameter. In case it is missing, the {@link Plugin#onCommandCallback window.Asc.plugin.onCommandCallback} function will be used to return the result of the command execution.
@@ -535,10 +577,12 @@ window.startPluginApi = function() {
      * @param {boolean} isCalc - Defines whether the document will be recalculated or not.
 	 * The *true* value is used to recalculate the document after executing the function in the *func* parameter.
 	 * The *false* value will not recalculate the document (use it only when your edits surely will not require document recalculation).
-	 * @param {Function} callback - The result that the method returns.
+	 * @param {Function} callback - The result that the method returns. Only the js standart types are available (any objects will be replaced with *undefined*).
 	 */
 	Plugin.callCommand = function(func, isClose, isCalc, callback)
     {
+		if (this._checkPluginOnWindow()) return;
+
         var _txtFunc = "var Asc = {}; Asc.scope = " + JSON.stringify(window.Asc.scope) + "; var scope = Asc.scope; (" + func.toString() + ")();";
         var _type = (isClose === true) ? "close" : "command";
         window.Asc.plugin.info.recalculate = (false === isCalc) ? false : true;
@@ -558,6 +602,8 @@ window.startPluginApi = function() {
 	 */
 	Plugin.callModule = function(url, callback, isClose)
     {
+		if (this._checkPluginOnWindow()) return;
+
         var _isClose = isClose;
         var _client = new XMLHttpRequest();
         _client.open("GET", url);
@@ -585,6 +631,8 @@ window.startPluginApi = function() {
 	 */
 	Plugin.loadModule = function(url, callback)
     {
+		if (this._checkPluginOnWindow()) return;
+
         var _client = new XMLHttpRequest();
         _client.open("GET", url);
 
@@ -597,6 +645,25 @@ window.startPluginApi = function() {
         };
         _client.send();
     };
+
+	/**
+	 * attachEvent
+	 * @memberof Plugin
+	 * @alias attachEvent
+	 * @description Defines the method to add an event listener, a function that will be called whenever the specified event is delivered to the target.
+	 * The list of all the available events can be found {@link Plugin#events here}.
+     * @param {string} id - The event name.
+	 * @param {Function} action - The event listener.
+	 */
+
+	/**
+	 * attachContextMenuClickEvent
+	 * @memberof Plugin
+	 * @alias attachContextMenuClickEvent
+	 * @description Defines the method to add an event listener, a function that will be called whenever the specified event is clicked in the context menu.
+     * @param {string} id - The event name.
+	 * @param {Function} action - The event listener.
+	 */
 
 	/***********************************************************************
 	 * INPUT HELPERS
@@ -673,6 +740,8 @@ window.startPluginApi = function() {
 	 */
 	Plugin.createInputHelper = function()
     {
+		if (this._checkPluginOnWindow()) return;
+
         window.Asc.plugin.ih = new window.Asc.inputHelper(window.Asc.plugin);
     };
 	/**
@@ -684,7 +753,41 @@ window.startPluginApi = function() {
 	 */
 	Plugin.getInputHelper = function()
 	{
+		if (this._checkPluginOnWindow()) return;
+
 		return window.Asc.plugin.ih;
+	};
+
+	/**
+	 * sendToPlugin
+	 * @memberof Plugin
+	 * @alias sendToPlugin
+	 * @description Sends a message from the modal window to the plugin.
+	 * @param {string} name - The event name.
+	 * @param {object} data - The event data.
+	 * @return {boolean} Returns true if the operation is successful.
+	 * @since 7.4.0
+	 */
+	Plugin.sendToPlugin = function(name, data)
+	{
+		if (this._checkPluginOnWindow(true)) return;
+
+		window.Asc.plugin.info.type = "messageToPlugin";
+		window.Asc.plugin.info.eventName = name;
+		window.Asc.plugin.info.data = data;
+		window.Asc.plugin.info.windowID = this.windowID;
+
+		var _message = "";
+		try
+		{
+			_message = JSON.stringify(window.Asc.plugin.info);
+		}
+		catch(err)
+		{
+			return false;
+		}
+		window.plugin_sendMessage(_message);
+		return true;
 	};
 
 };

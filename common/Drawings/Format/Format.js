@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -1065,7 +1065,8 @@
 			TEXT: 2,
 			EMPTY_PH: 3,
 			CHART_TEXT: 4,
-			CROP: 5
+			CROP: 5,
+			FORM: 6
 		};
 		var TYPE_KIND = {
 			SLIDE: 0,
@@ -1075,16 +1076,7 @@
 			NOTES_MASTER: 4
 		};
 
-		var TYPE_TRACK_SHAPE = 0;
-		var TYPE_TRACK_GROUP = TYPE_TRACK_SHAPE;
-		var TYPE_TRACK_GROUP_PASSIVE = 1;
-		var TYPE_TRACK_TEXT = 2;
-		var TYPE_TRACK_EMPTY_PH = 3;
-		var TYPE_TRACK_CHART = 4;
 
-		var SLIDE_KIND = 0;
-		var LAYOUT_KIND = 1;
-		var MASTER_KIND = 2;
 
 		var map_hightlight = {};
 		map_hightlight["black"] = 0x000000;
@@ -1657,6 +1649,35 @@
 				return;
 			}
 			this.Mods = oOther.Mods.concat(this.Mods);
+		};
+		CColorModifiers.prototype.getShadeOrTint = function() {
+			const M = this.Mods;
+			if(M.length === 1 && M[0].name === "lumMod" && M[0].val > 0) {//shade
+				return -(100000 - M[0].val);
+			}
+			if(M.length === 2 && M[0].name === "lumMod" && M[0].val > 0 && M[1].name === "lumOff" && M[1].val > 0) {
+				return (100000 - M[0].val);
+			}
+			return null;
+		};
+		CColorModifiers.prototype.canGetShadeOrTint = function() {
+			return this.getShadeOrTint() !== null;
+		};
+		CColorModifiers.prototype.getEffectValue = function () {
+			if(this.Mods.length === 1) {
+				let oMod = this.Mods[0];
+				if(oMod.name === "wordTint") {
+					return (255 - oMod.val) / 255;
+				}
+				if(oMod.name === "wordShade") {
+					return -(255 - oMod.val) / 255;
+				}
+			}
+			let nVal = this.getShadeOrTint();
+			if(nVal !== null) {
+				return nVal / 100000;
+			}
+			return 0;
 		};
 
 
@@ -2419,10 +2440,7 @@
 			}
 		};
 		CUniColor.prototype.canConvertPPTXModsToWord = function () {
-			return this.Mods
-				&& ((this.Mods.Mods.length === 1 && this.Mods.Mods[0].name === "lumMod" && this.Mods.Mods[0].val > 0)
-					|| (this.Mods.Mods.length === 2 && this.Mods.Mods[0].name === "lumMod" && this.Mods.Mods[0].val > 0
-						&& this.Mods.Mods[1].name === "lumOff" && this.Mods.Mods[1].val > 0));
+			return this.Mods && this.Mods.canGetShadeOrTint();
 		};
 		CUniColor.prototype.convertToWordMods = function () {
 			if (this.canConvertPPTXModsToWord()) {
@@ -2632,11 +2650,16 @@
 		};
 		CUniColor.prototype.getCSSColor = function (transparent) {
 			if (transparent != null) {
-				var _css = "rgba(" + this.RGBA.R + "," + this.RGBA.G + "," + this.RGBA.B + ",1)";
-				return _css;
+				return this.getCSSWithTransparent(1);
 			}
-			var _css = "rgba(" + this.RGBA.R + "," + this.RGBA.G + "," + this.RGBA.B + "," + (this.RGBA.A / 255) + ")";
-			return _css;
+			return this.getCSSWithTransparent(this.RGBA.A / 255);
+		};
+		CUniColor.prototype.getCSSValue = function (r, g, b, a) {
+			return "rgba(" + r + "," + g + "," + b + ","+ a +")";
+		};
+		CUniColor.prototype.getCSSWithTransparent = function(dTransparent) {
+			const oC = this.RGBA;
+			return this.getCSSValue(oC.R, oC.G, oC.B, dTransparent);
 		};
 		CUniColor.prototype.isCorrect = function () {
 			if (this.color !== null && this.color !== undefined) {
@@ -2663,6 +2686,89 @@
 		};
 		CUniColor.prototype.isUnicolor = function (sName) {
 			return !!CUniColor.prototype.UNICOLOR_MAP[sName];
+		};
+		CUniColor.prototype.read = function (_params, _cursor) {
+			let _continue = true;
+			while (_continue) {
+				let _attr = _params[_cursor.pos++];
+				switch (_attr) {
+					case 0: {
+						this.color = new AscFormat.CPrstColor();
+						this.color.type = _params[_cursor.pos++];
+						this.color.id = _params[_cursor.pos++];
+						this.color.RGBA = {
+							R: _params[_cursor.pos++],
+							G: _params[_cursor.pos++],
+							B: _params[_cursor.pos++],
+							A: _params[_cursor.pos++],
+							needRecalc: _params[_cursor.pos++]
+						};
+						break;
+					}
+					case 1: {
+						var _count = _params[_cursor.pos++];
+						for (var i = 0; i < _count; i++) {
+							var _mod = new AscFormat.CColorMod();
+							_mod.name = _params[_cursor.pos++];
+							_mod.val = _params[_cursor.pos++];
+							this.Mods.push(_mod);
+						}
+						break;
+					}
+					case 2: {
+						this.RGBA = {
+							R: _params[_cursor.pos++],
+							G: _params[_cursor.pos++],
+							B: _params[_cursor.pos++],
+							A: _params[_cursor.pos++]
+						}
+						break;
+					}
+					case 255:
+					default: {
+						_continue = false;
+						break;
+					}
+				}
+			}
+		};
+		CUniColor.prototype.write = function (_type, _stream) {
+			_stream["WriteByte"](_type);
+
+			if (this.color !== undefined && this.color !== null)
+			{
+				_stream["WriteByte"](0);
+				_stream["WriteLong"](this.color.type);
+				_stream["WriteStringA"](this.color.id);
+				_stream["WriteByte"](this.color.RGBA.R);
+				_stream["WriteByte"](this.color.RGBA.G);
+				_stream["WriteByte"](this.color.RGBA.B);
+				_stream["WriteByte"](this.color.RGBA.A);
+				_stream["WriteBool"](this.color.RGBA.needRecalc);
+			}
+			if (this.Mods !== undefined && this.Mods !== null)
+			{
+				_stream["WriteByte"](1);
+
+				var _len = this.Mods.length;
+				_stream["WriteLong"](_len);
+
+				for (var i = 0; i < _len; i++)
+				{
+					_stream["WriteStringA"](this.Mods[i].name);
+					_stream["WriteLong"](this.Mods[i].val);
+				}
+			}
+			if (this.RGBA !== undefined && this.RGBA !== null)
+			{
+				_stream["WriteByte"](2);
+				_stream["WriteByte"](this.RGBA.R);
+				_stream["WriteByte"](this.RGBA.G);
+				_stream["WriteByte"](this.RGBA.B);
+				_stream["WriteByte"](this.RGBA.A);
+			}
+
+			_stream["WriteByte"](255);
 		};
 
 		function CreateUniColorRGB(r, g, b) {
@@ -2760,6 +2866,24 @@
 				return true;
 			}
 			return false;
+		};
+		CSrcRect.prototype.isEqual = function(r) {
+			if(!r) {
+				return false;
+			}
+			if(r.l !== this.l) {
+				return false;
+			}
+			if(r.t !== this.t) {
+				return false;
+			}
+			if(r.r !== this.r) {
+				return false;
+			}
+			if(r.b !== this.v) {
+				return false;
+			}
+			return true;
 		};
 
 		function CBlipFillTile() {
@@ -2991,6 +3115,14 @@
 				}
 			} else {
 				if (fill.tile) {
+					return false;
+				}
+			}
+			if(fill.srcRect && !this.srcRect || this.srcRect && !fill.srcRect) {
+				return false;
+			}
+			if(fill.srcRect) {
+				if(!fill.srcRect.isEqual(this.srcRect)) {
 					return false;
 				}
 			}
@@ -3848,6 +3980,11 @@
 		};
 		COuterShdw.prototype.createDuplicate = function () {
 			var oCopy = new COuterShdw();
+			this.fillObject(oCopy);
+			return oCopy;
+		};
+
+		COuterShdw.prototype.fillObject = function (oCopy) {
 			oCopy.color = this.color.createDuplicate();
 			oCopy.algn = this.algn;
 			oCopy.blurRad = this.blurRad;
@@ -3858,7 +3995,6 @@
 			oCopy.rotWithShape = this.rotWithShape;
 			oCopy.sx = this.sx;
 			oCopy.sy = this.sy;
-			return oCopy;
 		};
 		COuterShdw.prototype.IsIdentical = function (other) {
 			if (!other) {
@@ -3880,6 +4016,11 @@
 			}
 			return true;
 		};
+		COuterShdw.prototype.getAscShdw = function() {
+			const oCopy = new asc_CShadowProperty();
+			this.fillObject(oCopy);
+			return oCopy;
+		};
 
 		function asc_CShadowProperty() {
 			COuterShdw.call(this);
@@ -3898,8 +4039,91 @@
 			this.rotWithShape = false;
 		}
 
-		asc_CShadowProperty.prototype = Object.create(COuterShdw.prototype);
-		asc_CShadowProperty.prototype.constructor = asc_CShadowProperty;
+		InitClass(asc_CShadowProperty, COuterShdw, 0);
+		asc_CShadowProperty.prototype.write = function (_type, _stream) {
+			_stream["WriteByte"](_type);
+
+			if (this.color) {
+				this.color.write(0, _stream);
+			}
+
+			if (this.algn !== undefined && this.algn !== null) {
+				_stream["WriteByte"](1);
+				_stream["WriteLong"](this.algn);
+			}
+			if (this.blurRad !== undefined && this.blurRad !== null) {
+				_stream["WriteByte"](2);
+				_stream["WriteLong"](this.blurRad);
+			}
+			if (this.dir !== undefined && this.dir !== null) {
+				_stream["WriteByte"](3);
+				_stream["WriteLong"](this.dir);
+			}
+			if (this.dist !== undefined && this.dist !== null) {
+				_stream["WriteByte"](4);
+				_stream["WriteLong"](this.dist);
+			}
+			if (this.rotWithShape !== undefined && this.rotWithShape !== null) {
+				_stream["WriteByte"](5);
+				_stream["WriteBool"](this.dist);
+			}
+			_stream["WriteByte"](6);
+			_stream["WriteBool"](true);
+
+			_stream["WriteByte"](255);
+		};
+		asc_CShadowProperty.prototype.read = function (_params, _cursor) {
+			let _continue = true;
+			while (_continue) {
+				let _attr = _params[_cursor.pos++];
+
+				switch (_attr) {
+					case 0: {
+						this.color = new AscFormat.CUniColor();
+						this.color.read(_params, _cursor);
+						break;
+					}
+					case 1: {
+						this.algn = _params[_cursor.pos++];
+						break;
+					}
+					case 2: {
+						this.blurRad = _params[_cursor.pos++];
+						break;
+					}
+					case 3: {
+						this.dir = _params[_cursor.pos++];
+						break;
+					}
+					case 4: {
+						this.dist = _params[_cursor.pos++];
+						break;
+					}
+					case 5: {
+						this.rotWithShape = _params[_cursor.pos++];
+						break;
+					}
+					case 6: {
+						if (!_params[_cursor.pos++]) {
+							return null;
+						}
+						break;
+					}
+					case 255:
+					default: {
+						_continue = false;
+						break;
+					}
+				}
+			}
+			return this;
+		};
+
+		asc_CShadowProperty.prototype.createDuplicate = function () {
+			var oCopy = new asc_CShadowProperty();
+			this.fillObject(oCopy);
+			return oCopy;
+		};
 
 
 		window['Asc'] = window['Asc'] || {};
@@ -5101,12 +5325,13 @@
 			return _ret.fill;
 		};
 		CUniFill.prototype.isSolidFillRGB = function () {
-			return (this.fill && this.fill.color && this.fill.color.color
-				&& this.fill.color.color.type === window['Asc'].c_oAscColor.COLOR_TYPE_SRGB)
+			return (this.isSolidFill() && this.fill.color.color.type === window['Asc'].c_oAscColor.COLOR_TYPE_SRGB)
+		};
+		CUniFill.prototype.isSolidFill = function () {
+			return !!(this.fill && this.fill.color && this.fill.color.color);
 		};
 		CUniFill.prototype.isSolidFillScheme = function () {
-			return (this.fill && this.fill.color && this.fill.color.color
-				&& this.fill.color.color.type === window['Asc'].c_oAscColor.COLOR_TYPE_SCHEME)
+			return (this.isSolidFill() && this.fill.color.color.type === window['Asc'].c_oAscColor.COLOR_TYPE_SCHEME)
 		};
 		CUniFill.prototype.isNoFill = function () {
 			return this.fill && this.fill.type === window['Asc'].c_oAscFill.FILL_TYPE_NOFILL;
@@ -5135,6 +5360,11 @@
 		};
 		CUniFill.prototype.isBlipFill = function() {
 			if(this.fill && this.fill.type === c_oAscFill.FILL_TYPE_BLIP) {
+				return true;
+			}
+		};
+		CUniFill.prototype.isGradientFill = function() {
+			if(this.fill && this.fill.type === c_oAscFill.FILL_TYPE_GRAD) {
 				return true;
 			}
 		};
@@ -5548,6 +5778,9 @@
 			}
 			if (shapeProp1.description === shapeProp2.description) {
 				_result_shape_prop.description = shapeProp1.description;
+			}
+			if (shapeProp1.name === shapeProp2.name) {
+				_result_shape_prop.name = shapeProp1.name;
 			}
 			if (shapeProp1.columnNumber === shapeProp2.columnNumber) {
 				_result_shape_prop.columnNumber = shapeProp1.columnNumber;
@@ -5988,6 +6221,9 @@
 				&& (this.tailEnd == null ? ln.tailEnd == null : this.tailEnd.IsIdentical(ln.headEnd)) &&
 				this.algn == ln.algn && this.cap == ln.cap && this.cmpd == ln.cmpd && this.w == ln.w && this.prstDash === ln.prstDash;
 		};
+		CLn.prototype.isEqual = function (ln) {
+			return this.IsIdentical(ln);
+		};
 		CLn.prototype.setFill = function (fill) {
 			this.Fill = fill;
 		};
@@ -6258,7 +6494,10 @@
 			}
 			this.cmpd = 1;
 		};
-
+		CLn.prototype.getWidthMM = function () {
+			const nEmu = AscFormat.isRealNumber(this.w) ? this.w : 12700;
+			return nEmu * AscCommonWord.g_dKoef_emu_to_mm;
+		};
 // -----------------------------
 
 // SHAPE ----------------------------
@@ -6388,11 +6627,17 @@
 		};
 
 
-		var AUDIO_CD = 0;
-		var WAV_AUDIO_FILE = 1;
-		var AUDIO_FILE = 2;
-		var VIDEO_FILE = 3;
-		var QUICK_TIME_FILE = 4;
+		const AUDIO_CD = 0;
+		const WAV_AUDIO_FILE = 1;
+		const AUDIO_FILE = 2;
+		const VIDEO_FILE = 3;
+		const QUICK_TIME_FILE = 4;
+
+
+		const DRAW_TYPE_PEN = 0;
+		const DRAW_TYPE_PENCIL = 1;
+		const DRAW_TYPE_HIGHLITER = 2;
+
 
 
 		function UniMedia() {
@@ -6985,6 +7230,9 @@
 				this.chExtY === xfrm.chExtY;
 		};
 		CXfrm.prototype.merge = function (xfrm) {
+			if(!xfrm) {
+				return;
+			}
 			if (xfrm.offX != null) {
 				this.offX = xfrm.offX;
 			}
@@ -8822,6 +9070,27 @@
 				fCallback(this.spTree[nSp]);
 			}
 		};
+		CSld.prototype.handleAllContents = function(fCallback) {
+			this.forEachSp(function(oSp) {
+				if (oSp.handleAllContents) {
+					oSp.handleAllContents(fCallback);
+				}
+			});
+		};
+		CSld.prototype.refreshAllContentsFields = function() {
+			this.handleAllContents(RefreshContentAllFields);
+		};
+
+		function RefreshContentAllFields(oContent) {
+			if(!oContent) {
+				return;
+			}
+			if(!oContent.RecalcAllFields) {
+				return;
+			}
+			oContent.RecalcAllFields();
+		}
+
 
 		function CSpTree(oSlideObject) {
 			CBaseNoIdObject.call(this);
@@ -9572,23 +9841,26 @@
 				this.textFit.Read_FromBinary(r);
 			}
 		};
+		CBodyPr.prototype.setDefaultInsets = function() {
+			this.bIns = 45720 / 36000;
+			this.tIns = 45720 / 36000;
+			this.lIns = 91440 / 36000;
+			this.rIns = 91440 / 36000;
+		};
 		CBodyPr.prototype.setDefault = function () {
+			this.setDefaultInsets();
 			this.flatTx = null;
 			this.anchor = 4;
 			this.anchorCtr = false;
-			this.bIns = 45720 / 36000;
 			this.compatLnSpc = false;
 			this.forceAA = false;
 			this.fromWordArt = false;
 			this.horzOverflow = AscFormat.nHOTOverflow;
-			this.lIns = 91440 / 36000;
 			this.numCol = 1;
-			this.rIns = 91440 / 36000;
 			this.rot = null;
 			this.rtlCol = false;
 			this.spcCol = false;
 			this.spcFirstLastPara = null;
-			this.tIns = 45720 / 36000;
 			this.upright = false;
 			this.vert = AscFormat.nVertTThorz;
 			this.vertOverflow = AscFormat.nVOTOverflow;
@@ -10355,6 +10627,17 @@
 			return this.getImageBulletURL();
 		}
 		prot["getImageId"] = prot["asc_getImageId"] = CBullet.prototype.getImageId;
+		prot.getJsonBullet = prot["asc_getJsonBullet"] = function () {
+			const sUrlId = this.getImageBulletURL();
+			const oRes = window['AscJsonConverter'].WriterToJSON.prototype.SerBullet(this);
+			if (sUrlId) {
+				const oBuBlip = oRes["bulletType"] && oRes["bulletType"]["buBlip"] && oRes["bulletType"]["buBlip"]["blip"] && oRes["bulletType"]["buBlip"]["blip"]["fill"];
+				if (oBuBlip) {
+					oBuBlip["rasterImageId"] = sUrlId;
+				}
+			}
+			return oRes;
+		}
 		prot.put_ImageUrl = function (sUrl, token) {
 			var _this = this;
 			var Api = editor || Asc.editor;
@@ -11931,7 +12214,7 @@
 
 		InitClass(CApp, CBaseNoIdObject, 0);
 		CApp.prototype.getAppName = function() {
-			return "@@AppName/@@Version";
+			return AscCommon.g_cCompanyName + "/" + AscCommon.g_cProductVersion;
 		};
 		CApp.prototype.setRequiredDefaults = function() {
 			this.Application = this.getAppName();
@@ -13070,6 +13353,35 @@
 
 		InitClass(CPres, CBaseNoIdObject, 0);
 
+		CPres.prototype.readSz = function(s) {
+			const oSldSize = new AscCommonSlide.CSlideSize();
+			s.Skip2(5); // len + start attributes
+
+			while (true) {
+				var _at = s.GetUChar();
+
+				if (_at === g_nodeAttributeEnd)
+					break;
+
+				switch (_at) {
+					case 0: {
+						oSldSize.setCX(s.GetLong());
+						break;
+					}
+					case 1: {
+						oSldSize.setCY(s.GetLong());
+						break;
+					}
+					case 2: {
+						oSldSize.setType(s.GetUChar());
+						break;
+					}
+					default:
+						return;
+				}
+			}
+			return oSldSize;
+		};
 		CPres.prototype.fromStream = function (s, reader) {
 			var _type = s.GetUChar();
 			var _len = s.GetULong();
@@ -13159,7 +13471,10 @@
 						break;
 					}
 					case 3: {
-						s.SkipRecord();
+						let oNotesSize = this.readSz(s);
+						if (oPresentattion.setNotesSz) {
+							oPresentattion.setNotesSz(oNotesSize);
+						}
 						break;
 					}
 					case 4: {
@@ -13167,32 +13482,7 @@
 						break;
 					}
 					case 5: {
-						var oSldSize = new AscCommonSlide.CSlideSize();
-						s.Skip2(5); // len + start attributes
-
-						while (true) {
-							var _at = s.GetUChar();
-
-							if (_at === g_nodeAttributeEnd)
-								break;
-
-							switch (_at) {
-								case 0: {
-									oSldSize.setCX(s.GetLong());
-									break;
-								}
-								case 1: {
-									oSldSize.setCY(s.GetLong());
-									break;
-								}
-								case 2: {
-									oSldSize.setType(s.GetUChar());
-									break;
-								}
-								default:
-									return;
-							}
-						}
+						let oSldSize = this.readSz(s);
 						if (oPresentattion.setSldSz) {
 							oPresentattion.setSldSz(oSldSize);
 						}
@@ -13972,6 +14262,9 @@
 			if (true === _canChangeArrows)
 				ret.canChangeArrows = true;
 
+			if (isRealNumber(ln.Fill.transparent)) {
+				ret.transparent = ln.Fill.transparent;
+			}
 			return ret;
 		}
 
@@ -14000,6 +14293,17 @@
 					ret.Fill.fill = new CSolidFill();
 					ret.Fill.fill.color = CorrectUniColor(_color, ret.Fill.fill.color, flag);
 				}
+			}
+
+			var _alpha = asc_stroke.transparent;
+			if (null != _alpha) {
+				if(!ret.Fill) {
+					ret.Fill = AscFormat.CreateSolidFillRGB(0, 0, 0);
+					if(!ret.w) {
+						ret.w = 12700;
+					}
+				}
+				ret.Fill.transparent = _alpha;
 			}
 
 			var _join = asc_stroke.LineJoin;
@@ -14124,6 +14428,7 @@
 			}
 			obj.title = shapeProp.title;
 			obj.description = shapeProp.description;
+			obj.name = shapeProp.name;
 			obj.columnNumber = shapeProp.columnNumber;
 			obj.columnSpace = shapeProp.columnSpace;
 			obj.textFitType = shapeProp.textFitType;
@@ -14988,6 +15293,7 @@
 			builder_SetAxisMinorGridlines(oChartSpace.chart.plotArea.getHorizontalAxis(), oLn);
 		}
 
+		const OBJECT_MORPH_MARKER = "!!";
 //----------------------------------------------------------export----------------------------------------------------
 		window['AscFormat'] = window['AscFormat'] || {};
 		window['AscFormat'].CreateFontRef = CreateFontRef;
@@ -15239,6 +15545,15 @@
 		window['AscFormat'].AUDIO_FILE = AUDIO_FILE;
 		window['AscFormat'].VIDEO_FILE = VIDEO_FILE;
 		window['AscFormat'].QUICK_TIME_FILE = QUICK_TIME_FILE;
+
+
+
+
+		window['AscFormat'].DRAW_TYPE_PEN = DRAW_TYPE_PEN;
+		window['AscFormat'].DRAW_TYPE_PENCIL = DRAW_TYPE_PENCIL;
+		window['AscFormat'].DRAW_TYPE_HIGHLITER = DRAW_TYPE_HIGHLITER;
+
+
 		window['AscFormat'].fCreateEffectByType = fCreateEffectByType;
 		window['AscFormat'].COuterShdw = COuterShdw;
 		window['AscFormat'].CGlow = CGlow;
@@ -15295,6 +15610,7 @@
 		window['AscFormat'].CVariantArray = CVariantArray;
 		window['AscFormat'].CVariantVStream = CVariantVStream;
 		window['AscFormat'].fRGBAToHexString = fRGBAToHexString;
+		window['AscFormat'].RefreshContentAllFields = RefreshContentAllFields;
 		window['AscFormat'].szPh_full = szPh_full;
 		window['AscFormat'].szPh_half = szPh_half;
 		window['AscFormat'].szPh_quarter = szPh_quarter;
@@ -15306,5 +15622,6 @@
 		window['AscFormat'].MAP_AUTONUM_TYPES = MAP_AUTONUM_TYPES;
 		window['AscFormat'].CLR_NAME_MAP = CLR_NAME_MAP;
 		window['AscFormat'].LINE_PRESETS_MAP = LINE_PRESETS_MAP;
+		window['AscFormat'].OBJECT_MORPH_MARKER = OBJECT_MORPH_MARKER;
 	})
 (window);

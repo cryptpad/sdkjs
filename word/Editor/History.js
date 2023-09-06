@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -48,9 +48,8 @@ function CHistory(Document)
     this.CanNotAddChanges     = false; // флаг для отслеживания ошибок добавления изменений без точки:Create_NewPoint->Add->Save_Changes->Add
 	this.CollectChanges       = false;
 	this.UndoRedoInProgress   = false; //
-
-	this.RecalculateData =
-	{
+	
+	this.RecalculateData = {
 		Inline       : {
 			Pos     : -1,
 			PageNum : 0
@@ -58,10 +57,10 @@ function CHistory(Document)
 		Flow         : [],
 		HdrFtr       : [],
 		Drawings     : {
-			All        : false,
-			Map        : {},
-			ThemeInfo  : null,
-            SlideMinIdx: null
+			All         : false,
+			Map         : {},
+			ThemeInfo   : null,
+			SlideMinIdx : null
 		},
 		Tables       : [],
 		NumPr        : [],
@@ -75,7 +74,8 @@ function CHistory(Document)
 	this.RegisterClasses = 0;
     this.MinorChanges    = false; // Данный параметр нужен, чтобы определить влияют ли добавленные изменения на пересчет
 
-    this.BinaryWriter = new AscCommon.CMemory();
+    this.BinaryWriter = new AscCommon.CMemory(true);
+	this.BinaryWriter.Init(1024*1024*1);
 
     this.FileCheckSum = 0;
     this.FileSize     = 0;
@@ -313,7 +313,9 @@ CHistory.prototype =
     {
 		if ( 0 !== this.TurnOffHistory )
 			return false;
-
+		
+		this.RemoveLastTemporaryPoint();
+		
 		if (this.Document && this.Document.ClearListsCache)
 			this.Document.ClearListsCache();
 
@@ -338,6 +340,7 @@ CHistory.prototype =
             Items      : Items, // Массив изменений, начиная с текущего момента
             Time       : Time,  // Текущее время
             Additional : {},    // Дополнительная информация
+			Temporary  : false,
             Description: nDescription
         };
 
@@ -1095,6 +1098,27 @@ CHistory.prototype =
 		if (this.Points[this.Index] && this.Points[this.Index].Additional.FormFilling)
 			delete this.Points[this.Index].Additional.FormFilling;
 	};
+	CHistory.prototype.SetLastPointTemporary = function()
+	{
+		if (this.Index < 0)
+			return;
+		
+		this.Points[this.Index].Temporary = true;
+	};
+	CHistory.prototype.RemoveLastTemporaryPoint = function()
+	{
+		if (this.Index < 0
+			|| !this.Document.IsDocumentEditor()
+			|| !this.Points[this.Index].Temporary)
+			return;
+		
+		let needOn = this.Document.TurnOff_InterfaceEvents();
+		let changes = this.Undo();
+		this.Document.UpdateAfterUndoRedo(changes);
+		
+		if (needOn)
+			this.Document.TurnOn_InterfaceEvents();
+	};
 CHistory.prototype.ClearAdditional = function()
 {
 	if (this.Index >= 0)
@@ -1109,14 +1133,23 @@ CHistory.prototype.ClearAdditional = function()
 			this.SetAdditionalFormFilling(form);
 	}
 
-	if (this.Api && true === this.Api.isMarkerFormat)
-		this.Api.sync_MarkerFormatCallback(false);
+	if(this.Api)
+	{
+		if (true === this.Api.isMarkerFormat)
+			this.Api.sync_MarkerFormatCallback(false);
 
-	if (this.Api && true === this.Api.isDrawTablePen)
-		this.Api.sync_TableDrawModeCallback(false);
+		if (true === this.Api.isDrawTablePen)
+			this.Api.sync_TableDrawModeCallback(false);
 
-	if (this.Api && true === this.Api.isDrawTableErase)
-		this.Api.sync_TableEraseModeCallback(false);
+		if (true === this.Api.isDrawTableErase)
+			this.Api.sync_TableEraseModeCallback(false);
+
+		if(this.Api.isEyedropperStarted())
+			this.Api.cancelEyedropper();
+
+		if(this.Api.isInkDrawerOn())
+			this.Api.stopInkDrawer();
+	}
 };
 CHistory.prototype.private_UpdateContentChangesOnUndo = function(Item)
 {
@@ -1263,7 +1296,8 @@ CHistory.prototype.RemoveLastPoint = function()
 CHistory.prototype.private_ClearRecalcData = function()
 {
 	// NumPr здесь не обнуляем
-	var NumPr            = this.RecalculateData.NumPr;
+	let numPr = this.RecalculateData.NumPr;
+	
 	this.RecalculateData = {
 		Inline   : {
 			Pos     : -1,
@@ -1272,23 +1306,61 @@ CHistory.prototype.private_ClearRecalcData = function()
 		Flow     : [],
 		HdrFtr   : [],
 		Drawings : {
-			All        : false,
-			Map        : {},
-			ThemeInfo  : null,
-            SlideMinIdx: null
+			All         : false,
+			Map         : {},
+			ThemeInfo   : null,
+			SlideMinIdx : null
 		},
-
-		Tables        : [],
-		NumPr         : NumPr,
-		NotesEnd      : false,
-		NotesEndPage  : 0,
-		Update        : true,
-		ChangedStyles : {},
-		ChangedNums   : {},
-		LineNumbers   : false,
-		AllParagraphs : null
+		
+		Tables            : [],
+		NumPr             : numPr,
+		NotesEnd          : false,
+		NotesEndPage      : 0,
+		Update            : true,
+		ChangedStyles     : {},
+		ChangedNums       : {},
+		LineNumbers       : false,
+		AllParagraphs     : null
 	};
 };
+	CHistory.prototype.getRecalcDataByElements = function(elements)
+	{
+		let storedRecalcData = this.RecalculateData;
+		
+		this.RecalculateData = {
+			Inline   : {
+				Pos     : -1,
+				PageNum : 0
+			},
+			Flow     : [],
+			HdrFtr   : [],
+			Drawings : {
+				All         : false,
+				Map         : {},
+				ThemeInfo   : null,
+				SlideMinIdx : null
+			},
+			
+			Tables            : [],
+			NumPr             : [],
+			NotesEnd          : false,
+			NotesEndPage      : 0,
+			Update            : true,
+			ChangedStyles     : {},
+			ChangedNums       : {},
+			LineNumbers       : false,
+			AllParagraphs     : null
+		};
+		
+		for (let i = 0, count = elements.length; i < count; ++i)
+		{
+			elements[i].Refresh_RecalcData2();
+		}
+		
+		let result = this.RecalculateData;
+		this.RecalculateData = storedRecalcData;
+		return result;
+	};
 /**
  * Обработка изменений после Undo/Redo всех изменений
  */

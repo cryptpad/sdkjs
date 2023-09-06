@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -691,7 +691,7 @@
 		 * @param event {MouseEvent}
 		 * @param callback {Function}
 		 */
-		asc_CEventsController.prototype._moveRangeHandle = function (event, callback) {
+		asc_CEventsController.prototype._moveRangeHandle = function (event, callback, colRowMoveProps) {
 			var t = this;
 			// Обновляемся в режиме перемещения диапазона
 			var coord = this._getCoordinates(event);
@@ -700,7 +700,7 @@
 					if (!d) return;
 					t.scroll(d);
 					asc_applyFunction(callback);
-				});
+				}, colRowMoveProps);
 		};
 
 		/**
@@ -760,9 +760,9 @@
 			this.handlers.trigger("moveRangeHandleDone", ctrlKey);
 		};
 
-		asc_CEventsController.prototype._moveResizeRangeHandleDone = function () {
+		asc_CEventsController.prototype._moveResizeRangeHandleDone = function (isPageBreakPreview) {
 			// Закончили перемещение диапазона, пересчитаем
-			this.handlers.trigger("moveResizeRangeHandleDone");
+			this.handlers.trigger("moveResizeRangeHandleDone", isPageBreakPreview);
 		};
 
 		/** @param event {jQuery.Event} */
@@ -827,9 +827,8 @@
 
 			switch (event.which) {
 				case 116:
-					//todo ctrl+alt
 					if (canEdit && !t.getCellEditMode() && !selectionDialogMode &&
-						event.altKey && t.handlers.trigger("refreshConnections", !!ctrlKey)) {
+						event.altKey && t.handlers.trigger("refreshConnections", !!event.ctrlKey)) {
 						return result;
 					}
 					t._setSkipKeyPress(false);
@@ -872,6 +871,7 @@
 					t.handlers.trigger("editCell", enterOptions);
 					return result;
 
+				case 59:
 				case 186: // add current date or time Ctrl + (Shift) + ;
 					if (!canEdit || t.getCellEditMode() || selectionDialogMode) {
 						return true;
@@ -961,6 +961,7 @@
 					t.handlers.trigger("stopAddShape");
 					t.handlers.trigger("cleanCutData", true, true);
 					t.handlers.trigger("cleanCopyData", true, true);
+					t.view.Api.cancelEyedropper();
 					window['AscCommon'].g_specialPasteHelper.SpecialPasteButton_Hide();
 					return result;
 
@@ -996,6 +997,15 @@
 					if (shiftKey) {
 						t.handlers.trigger("selectRowsByRange");
 					}
+					return result;
+
+				case 110: //NumpadDecimal
+					if (!canEdit || t.getCellEditMode() || selectionDialogMode) {
+						return true;
+					}
+					window["Asc"]["editor"].wb.EnterText(this.view.Api.asc_getDecimalSeparator().charCodeAt(0), true);
+					//stop to prevent double enter
+					stop();
 					return result;
 
 				case 33: // PageUp
@@ -1197,6 +1207,9 @@
 						case 192:
 							if (shiftKey) {
 								t.handlers.trigger("setCellFormat", Asc.c_oAscNumFormatType.General);
+								action = true;
+							} else {
+								t.handlers.trigger("showFormulas");
 								action = true;
 							}
 							break;
@@ -1482,7 +1495,7 @@
 
 			if (this.isMoveResizeRange) {
 				this.isMoveResizeRange = false;
-				this.handlers.trigger("moveResizeRangeHandleDone");
+				this._moveResizeRangeHandleDone(this.targetInfo && this.targetInfo.isPageBreakPreview);
 			}
 			// Режим установки закреплённых областей
 			if (this.frozenAnchorMode) {
@@ -1567,7 +1580,9 @@
 
 			AscCommon.global_mouseEvent.LockMouse();
 
-
+			if(t.view.Api.isEyedropperStarted()) {
+				return;
+			}
 			if (t.handlers.trigger("isGlobalLockEditCell")) {
 				return;
 			}
@@ -1576,36 +1591,36 @@
 				t.handlers.trigger("canvasClick");
 			}
 
-			if (!(asc["editor"].isStartAddShape || this.getSelectionDialogMode() || this.getCellEditMode() && !this.handlers.trigger("stopCellEditing"))) {
+			if (!(asc["editor"].isStartAddShape || asc["editor"].isInkDrawerOn() || this.getSelectionDialogMode() || this.getCellEditMode() && !this.handlers.trigger("stopCellEditing"))) {
 				const isPlaceholder = t.handlers.trigger("onPointerDownPlaceholder", coord.x, coord.y);
 				if (isPlaceholder) {
 					return;
 				}
 			}
 
-			if (asc["editor"].isStartAddShape || graphicsInfo) {
-				// При выборе диапазона не нужно выделять автофигуру
-				if (this.getSelectionDialogMode()) {
+			// do not work with drawings in selection dialog mode
+			if (!this.getSelectionDialogMode()) {
+				if (asc["editor"].isStartAddShape || asc["editor"].isInkDrawerOn() || graphicsInfo) {
+
+
+					if (this.getCellEditMode() && !this.handlers.trigger("stopCellEditing")) {
+						return;
+					}
+
+					t.isShapeAction = true;
+					t.isUpOnCanvas = false;
+
+
+					t.clickCounter.mouseDownEvent(coord.x, coord.y, button);
+					event.ClickCount = t.clickCounter.clickCount;
+					if (0 === event.ClickCount % 2) {
+						t.isDblClickInMouseDown = true;
+					}
+
+					t.handlers.trigger("graphicObjectMouseDown", event, coord.x, coord.y);
+					t.handlers.trigger("updateSelectionShape", /*isSelectOnShape*/true);
 					return;
 				}
-
-				if (this.getCellEditMode() && !this.handlers.trigger("stopCellEditing")) {
-					return;
-				}
-
-				t.isShapeAction = true;
-				t.isUpOnCanvas = false;
-
-
-				t.clickCounter.mouseDownEvent(coord.x, coord.y, button);
-				event.ClickCount = t.clickCounter.clickCount;
-				if (0 === event.ClickCount % 2) {
-					t.isDblClickInMouseDown = true;
-				}
-
-				t.handlers.trigger("graphicObjectMouseDown", event, coord.x, coord.y);
-				t.handlers.trigger("updateSelectionShape", /*isSelectOnShape*/true);
-				return;
 			}
 
 
@@ -1640,7 +1655,7 @@
 
 			if (!t.getCellEditMode() && !t.getSelectionDialogMode()) {
 				this.gotFocus(true);
-				if (event.shiftKey) {
+				if (event.shiftKey && !(t.targetInfo.target === c_oTargetType.ColumnRowHeaderMove && this.canEdit())) {
 					t.isSelectMode = true;
 					t._changeSelection(event);
 					return;
@@ -1665,7 +1680,7 @@
 						if (0 === button) {
 							if (t.targetInfo.isDataValidation) {
 								this.handlers.trigger('onDataValidation');
-							} else if (t.targetInfo.idPivot && Asc.CT_pivotTableDefinition.prototype.asc_filterByCell) {
+							} else if (t.targetInfo.idPivot) {
 								this.handlers.trigger("pivotFiltersClick", t.targetInfo.idPivot);
 							} else if (t.targetInfo.idPivotCollapse) {
 								this.handlers.trigger("pivotCollapseClick", t.targetInfo.idPivotCollapse);
@@ -1746,9 +1761,16 @@
 					this.isFillHandleMode = true;
 					this._changeFillHandle(event, null, t.targetInfo.tableIndex);
 				} else {
-					this.isSelectMode = true;
-					this.handlers.trigger("changeSelection", /*isStartPoint*/true, coord.x, coord.y, /*isCoord*/true,
-						ctrlKey);
+					if (this.targetInfo && this.targetInfo.target === c_oTargetType.ColumnRowHeaderMove) {
+						this.isMoveRangeMode = true;
+						t._moveRangeHandle(event, null, {ctrlKey: ctrlKey, shiftKey: event.shiftKey});
+						t.handlers.trigger("updateWorksheet", coord.x, coord.y);
+						//t.handlers.trigger("updateWorksheet", coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
+					} else {
+						this.isSelectMode = true;
+						this.handlers.trigger("changeSelection", /*isStartPoint*/true, coord.x, coord.y, /*isCoord*/true,
+							ctrlKey);
+					}
 				}
 			}
 		};
@@ -1771,15 +1793,21 @@
 				return true;
 			}
 
-			// Shapes
 			var coord = this._getCoordinates(event);
+			if(this.view.Api.isEyedropperStarted()) {
+				this.view.Api.finishEyedropper();
+				var t = this;
+				t.handlers.trigger("updateWorksheet", coord.x, coord.y, false, function(info){t.targetInfo = info;});
+				return true;
+			}
+			// Shapes
 			event.isLocked = this.isMousePressed = false;
 
 			if (this.isShapeAction) {
 				event.ClickCount = this.clickCounter.clickCount;
 				this.handlers.trigger("graphicObjectMouseUp", event, coord.x, coord.y);
 				this._changeSelectionDone(event);
-                if (asc["editor"].isStartAddShape)
+                if (asc["editor"].isStartAddShape || asc["editor"].isInkDrawerOn())
                 {
                     event.preventDefault && event.preventDefault();
                     event.stopPropagation && event.stopPropagation();
@@ -1815,7 +1843,7 @@
 
 			if (this.isMoveResizeRange) {
 				this.isMoveResizeRange = false;
-				this._moveResizeRangeHandleDone();
+				this._moveResizeRangeHandleDone(this.targetInfo && this.targetInfo.pageBreakSelectionType);
 				return true;
 			}
 			// Режим установки закреплённых областей
@@ -1830,6 +1858,10 @@
 				return;
 			}
 
+			if (this.targetInfo && this.targetInfo.target === c_oTargetType.ColumnHeader) {
+				this._onMouseMove(event);
+			}
+
 			// Мы можем dblClick и не отработать, если вышли из области и отпустили кнопку мыши, нужно отработать
 			this.showCellEditorCursor();
 		};
@@ -1842,6 +1874,11 @@
 
 			t.hasCursor = true;
 
+			if(t.view.Api.isEyedropperStarted()) {
+				t.view.Api.checkEyedropperColor(coord.x, coord.y);
+				t.handlers.trigger("updateWorksheet", coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
+				return true;
+			}
 			// Shapes
 			var graphicsInfo = t.handlers.trigger("getGraphicsInfo", coord.x, coord.y);
 			if ( graphicsInfo )
@@ -1886,7 +1923,7 @@
 				return true;
 			}
 
-			if (t.isShapeAction || graphicsInfo) {
+			if (t.isShapeAction || graphicsInfo || asc["editor"].isInkDrawerOn()) {
 				event.isLocked = t.isMousePressed;
 				t.handlers.trigger("graphicObjectMouseMove", event, coord.x, coord.y);
 				t.handlers.trigger("updateWorksheet", coord.x, coord.y, ctrlKey, function(info){t.targetInfo = info;});
@@ -1914,6 +1951,9 @@
 			}
 			if (this.isFillHandleMode) {
 				t.fillHandleModeTimerId = window.setTimeout(function(){t._changeFillHandle2(event)},0);
+			}
+			if(t.view.Api.isEyedropperStarted()) {
+				this.view.Api.sendEvent("asc_onHideEyedropper");
 			}
 			return true;
 		};

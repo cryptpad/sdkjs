@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -325,16 +325,17 @@ AscFormat.InitClass(Slide, AscFormat.CBaseFormatObject, AscDFH.historyitem_type_
         return copy;
     };
     Slide.prototype.handleAllContents = function(fCallback){
-        var sp_tree = this.cSld.spTree;
-        for(var i = 0; i < sp_tree.length; ++i){
-            if (sp_tree[i].handleAllContents){
-                sp_tree[i].handleAllContents(fCallback);
-            }
-        }
+        this.cSld.handleAllContents(fCallback);
         if(this.notesShape){
             this.notesShape.handleAllContents(fCallback);
         }
     };
+	Slide.prototype.refreshAllContentsFields = function() {
+		this.cSld.refreshAllContentsFields();
+		if(this.notesShape){
+			this.notesShape.handleAllContents(AscFormat.RefreshContentAllFields);
+		}
+	};
     Slide.prototype.Search = function(Engine, Type ){
         var sp_tree = this.cSld.spTree;
         for(var i = 0; i < sp_tree.length; ++i){
@@ -1285,15 +1286,29 @@ AscFormat.InitClass(Slide, AscFormat.CBaseFormatObject, AscDFH.historyitem_type_
         return this.showMasterSp !== false;
     };
 
-    Slide.prototype.draw = function(graphics) {
-        let bCheckBounds = graphics.IsSlideBoundsCheckerType;
-        let bSlideShow = this.graphicObjects.isSlideShow();
-        let bClipBySlide = !this.graphicObjects.canEdit();
-        if (bCheckBounds && (bSlideShow || bClipBySlide)) {
-            graphics.rect(0, 0, this.Width, this.Height);
-            return;
+    Slide.prototype.isEqualBgMasterAndLayout = function(oSlide) {
+        if(!(this.backgroundFill === oSlide.backgroundFill ||
+            this.backgroundFill && this.backgroundFill.isEqual(oSlide.backgroundFill))) {
+            return false;
         }
-        let _bounds, i;
+        if(this.needMasterSpDraw() && !oSlide.needMasterSpDraw() || oSlide.needMasterSpDraw() && !this.needMasterSpDraw()) {
+            return false;
+        }
+        if(this.needMasterSpDraw()) {
+            if(this.Layout.Master !== oSlide.Layout.Master) {
+               return false;
+            }
+        }
+        if(this.needLayoutSpDraw()) {
+            if(this.Layout !== oSlide.Layout) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    Slide.prototype.drawBgMasterAndLayout = function(graphics, bClipBySlide, bCheckBounds) {
+        let _bounds;
         DrawBackground(graphics, this.backgroundFill, this.Width, this.Height);
         if(bClipBySlide) {
             graphics.SaveGrState();
@@ -1317,6 +1332,17 @@ AscFormat.InitClass(Slide, AscFormat.CBaseFormatObject, AscDFH.historyitem_type_
                 this.Layout.draw(graphics, this);
             }
         }
+    };
+    Slide.prototype.draw = function(graphics) {
+        let bCheckBounds = graphics.IsSlideBoundsCheckerType;
+        let bSlideShow = this.graphicObjects.isSlideShow();
+        let bClipBySlide = !this.graphicObjects.canEdit();
+        if (bCheckBounds && (bSlideShow || bClipBySlide)) {
+            graphics.rect(0, 0, this.Width, this.Height);
+            return;
+        }
+        let _bounds, i;
+        this.drawBgMasterAndLayout(graphics, bClipBySlide, bCheckBounds);
         this.collaborativeMarks.Init_Drawing();
         let oCollColor;
         let fDist = 3;

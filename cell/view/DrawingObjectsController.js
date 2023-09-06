@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -105,14 +105,17 @@ DrawingObjectsController.prototype.getDrawingArray = function()
 
 DrawingObjectsController.prototype.setTableProps = function(props)
 {
-    var by_type = this.getSelectedObjectsByTypes();
+    let by_type = this.getSelectedObjectsByTypes();
     if(by_type.tables.length === 1)
     {
-        var sCaption = props.TableCaption;
-        var sDescription = props.TableDescription;
-        var dRowHeight = props.RowHeight;
-        by_type.tables[0].setTitle(sCaption);
-        by_type.tables[0].setDescription(sDescription);
+        let sCaption = props.TableCaption;
+        let sDescription = props.TableDescription;
+        let sName = props.TableName;
+        let dRowHeight = props.RowHeight;
+        let oTable = by_type.tables[0];
+        oTable.setTitle(sCaption);
+        oTable.setDescription(sDescription);
+        oTable.setName(sName);
         props.TableCaption = undefined;
         props.TableDescription = undefined;
         var bIgnoreHeight = false;
@@ -125,22 +128,22 @@ DrawingObjectsController.prototype.setTableProps = function(props)
             bIgnoreHeight = false;
         }
         var target_text_object = AscFormat.getTargetTextObject(this);
-        if(target_text_object === by_type.tables[0])
+        if(target_text_object === oTable)
         {
-            by_type.tables[0].graphicObject.Set_Props(props);
+            oTable.graphicObject.Set_Props(props);
         }
         else
         {
-            by_type.tables[0].graphicObject.SelectAll();
-            by_type.tables[0].graphicObject.Set_Props(props);
-            by_type.tables[0].graphicObject.RemoveSelection();
+            oTable.graphicObject.SelectAll();
+            oTable.graphicObject.Set_Props(props);
+            oTable.graphicObject.RemoveSelection();
         }
         props.TableCaption = sCaption;
         props.TableDescription = sDescription;
         props.RowHeight = dRowHeight;
-        if(!by_type.tables[0].setFrameTransform(props)) 
+        if(!oTable.setFrameTransform(props))
         {
-            editor.WordControl.m_oLogicDocument.Check_GraphicFrameRowHeight(by_type.tables[0], bIgnoreHeight);
+            editor.WordControl.m_oLogicDocument.Check_GraphicFrameRowHeight(oTable, bIgnoreHeight);
         }
         
     }
@@ -290,8 +293,11 @@ DrawingObjectsController.prototype.onMouseDown = function(e, x, y)
 {
     e.ShiftKey = e.shiftKey;
     e.CtrlKey = e.metaKey || e.ctrlKey;
+    e.AltKey = e.altKey;
     e.Button = e.button;
     e.Type = AscCommon.g_mouse_event_type_down;
+	e.IsLocked = e.isLocked;
+    this.checkInkState();
     var ret = this.curState.onMouseDown(e, x, y, 0);
     if(e.ClickCount < 2)
     {
@@ -313,8 +319,10 @@ DrawingObjectsController.prototype.onMouseMove = function(e, x, y)
 {
     e.ShiftKey = e.shiftKey;
     e.CtrlKey = e.metaKey || e.ctrlKey;
+	e.AltKey = e.altKey;
     e.Button = e.button;
     e.Type = AscCommon.g_mouse_event_type_move;
+	e.IsLocked = e.isLocked;
     this.curState.onMouseMove(e, x, y, 0);
 };
 DrawingObjectsController.prototype.OnMouseMove = DrawingObjectsController.prototype.onMouseMove;
@@ -324,6 +332,7 @@ DrawingObjectsController.prototype.onMouseUp = function(e, x, y)
 {
     e.ShiftKey = e.shiftKey;
     e.CtrlKey = e.metaKey || e.ctrlKey;
+	e.AltKey = e.altKey;
     e.Button = e.button;
     e.Type = AscCommon.g_mouse_event_type_up;
     this.curState.onMouseUp(e, x, y, 0);
@@ -353,6 +362,7 @@ DrawingObjectsController.prototype.createGroup = function()
         group.addToRecalculate();
         this.startRecalculate();
     }
+		return group;
 };
 DrawingObjectsController.prototype.handleChartDoubleClick = function()
 {
@@ -480,6 +490,7 @@ DrawingObjectsController.prototype.addChartDrawingObject = function(options)
 DrawingObjectsController.prototype.isPointInDrawingObjects = function(x, y, e)
 {
     this.handleEventMode = AscFormat.HANDLE_EVENT_MODE_CURSOR;
+    this.checkInkState();
     var ret = this.curState.onMouseDown(e || {}, x, y, 0);
     this.handleEventMode = AscFormat.HANDLE_EVENT_MODE_HANDLE;
     return ret;

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -570,6 +570,19 @@
 			return bRes;
 		};
 
+		Range.prototype.isIntersectForInsertColRow = function (range, isInsertCol) {
+			var bRes = true;
+			if (range.r2 < this.r1 || this.r2 < range.r1)
+				bRes = false;
+			else if (range.c2 < this.c1 || this.c2 < range.c1) 
+				bRes = false;
+			else if (isInsertCol && (this.c1 >= range.c1))
+				bRes = false;
+			else if (!isInsertCol && (this.r1 >= range.r1))
+				bRes = false;
+			return bRes;
+		};
+
 		Range.prototype.isIntersectWithRanges = function (ranges, exceptionIndex) {
 			if (ranges) {
 				for (var i = 0; i < ranges.length; i++) {
@@ -1083,6 +1096,23 @@
 
 			return new Range(col0, row0,  col0 + (this.r2 - this.r1), row0 + (this.c2 - this.c1));
 		};
+		Range.prototype.sliceAfter = function(col, row) {
+			let res = null;
+			if (col !== this.c2) {
+				if (!res) {
+					res = [];
+				}
+				res.push(new Range(col + 1, row, this.c2, row));
+			}
+			if (row !== this.r2) {
+				if (!res) {
+					res = [];
+				}
+				res.push(new Range(this.c1, row + 1, this.c2, this.r2));
+			}
+			return res;
+		};
+
 
 		/**
 		 *
@@ -1454,6 +1484,13 @@
 					break;
 				}
 			}
+			return res;
+		};
+		SelectionRange.prototype.getSize = function () {
+			let res = 0;
+			this.ranges.forEach(function (item) {
+				res += (item.r2 - item.r1 + 1) * (item.c2 - item.c1 + 1);
+			});
 			return res;
 		};
 
@@ -1972,7 +2009,7 @@
 
 		function trim(val)
 		{
-			if(!String.prototype.trim)
+			if(String.prototype.trim)
 				return val.trim();
 			else
 				return val.replace(/^\s+|\s+$/g,'');
@@ -2425,25 +2462,25 @@
 			var oBorder = dxf && dxf.getBorder();
 			if (oBorder) {
 				var oS = oBorder.l;
-				if(oS && oS.s !== Asc.c_oAscBorderStyles.None) {
+				if(oS && !oS.isEmpty()) {
 					ctx.setStrokeStyle(oS.getColorOrDefault()).setLineWidth(1).setLineDash(oS.getDashSegments()).beginPath();
 					ctx.lineVer(x0, y0, y1);
 					ctx.stroke();
 				}
 				oS = oBorder.t;
-				if(oS && oS.s !== Asc.c_oAscBorderStyles.None) {
+				if(oS && !oS.isEmpty()) {
 					ctx.setStrokeStyle(oS.getColorOrDefault()).setLineWidth(1).setLineDash(oS.getDashSegments()).beginPath();
 					ctx.lineHor(x0 + 1, y0, x1 - 1);
 					ctx.stroke();
 				}
 				oS = oBorder.r;
-				if(oS && oS.s !== Asc.c_oAscBorderStyles.None) {
+				if(oS && !oS.isEmpty()) {
 					ctx.setStrokeStyle(oS.getColorOrDefault()).setLineWidth(1).setLineDash(oS.getDashSegments()).beginPath();
 					ctx.lineVer(x1 - 1, y0, y1);
 					ctx.stroke();
 				}
 				oS = oBorder.b;
-				if(oS && oS.s !== Asc.c_oAscBorderStyles.None) {
+				if(oS && !oS.isEmpty()) {
 					ctx.setStrokeStyle(oS.getColorOrDefault()).setLineWidth(1).setLineDash(oS.getDashSegments()).beginPath();
 					ctx.lineHor(x0 + 1, y1 - 1, x1 - 1);
 					ctx.stroke();
@@ -2658,6 +2695,8 @@
 				this.tooltip = obj.tooltip;
 
 				this.color = obj.color;
+
+				this.placeholderType = obj.placeholderType;
 			}
 
 			return this;
@@ -2676,7 +2715,8 @@
 			asc_getSizePx: function () { return this.sizePx; },
 			asc_getFilter: function () { return this.filter; },
 			asc_getTooltip: function () { return this.tooltip; },
-			asc_getColor: function () { return this.color; }
+			asc_getColor: function () { return this.color; },
+			asc_getPlaceholderType: function () { return this.placeholderType; }
 		};
 
 		// Гиперссылка
@@ -2819,8 +2859,10 @@
 
 			this.isOnlyFirstPage = null;
 			this.nativeOptions = undefined;
+			this.activeSheetsArray = null;//массив с индексами листов, которые необходимо напечатать
 
-			// ToDo сюда же start и end page index
+			this.startPageIndex = null;
+			this.endPageIndex = null;
 
 			return this;
 		}
@@ -2832,6 +2874,12 @@
 		asc_CAdjustPrint.prototype.asc_setIgnorePrintArea = function (val) { this.ignorePrintArea = val; };
 		asc_CAdjustPrint.prototype.asc_getNativeOptions = function () { return this.nativeOptions; };
 		asc_CAdjustPrint.prototype.asc_setNativeOptions = function (val) { this.nativeOptions = val; };
+		asc_CAdjustPrint.prototype.asc_getActiveSheetsArray = function () { return this.activeSheetsArray; };
+		asc_CAdjustPrint.prototype.asc_setActiveSheetsArray = function (val) { this.activeSheetsArray = val; };
+		asc_CAdjustPrint.prototype.asc_getStartPageIndex = function () { return this.startPageIndex; };
+		asc_CAdjustPrint.prototype.asc_setStartPageIndex = function (val) { this.startPageIndex = val; };
+		asc_CAdjustPrint.prototype.asc_getEndPageIndex = function () { return this.endPageIndex; };
+		asc_CAdjustPrint.prototype.asc_setEndPageIndex = function (val) { this.endPageIndex = val; };
 
 		/** @constructor */
 		function asc_CLockInfo () {
@@ -2864,8 +2912,10 @@
 			this.zoomScale = 100;
 
 			this.showZeros = null;
+			this.showFormulas = null;
 
 			this.topLeftCell = null;
+			this.view = null;
 
 			return this;
 		}
@@ -2882,6 +2932,7 @@
 				}
 				result.showZeros = this.showZeros;
 				result.topLeftCell = this.topLeftCell;
+				result.showFormulas = this.showFormulas;
 				return result;
 			},
 			isEqual: function (settings) {
@@ -2894,10 +2945,12 @@
 			asc_getZoomScale: function () { return this.zoomScale; },
 			asc_getIsFreezePane: function () { return null !== this.pane && this.pane.isInit(); },
 			asc_getShowZeros: function () { return false !== this.showZeros; },
+			asc_getShowFormulas: function () { return false !== this.showFormulas; },
 			asc_setShowGridLines: function (val) { this.showGridLines = val; },
 			asc_setShowRowColHeaders: function (val) { this.showRowColHeaders = val; },
 			asc_setZoomScale: function (val) { this.zoomScale = val; },
-			asc_setShowZeros: function (val) { this.showZeros = val; }
+			asc_setShowZeros: function (val) { this.showZeros = val; },
+			asc_setShowFormulas: function (val) { this.showFormulas = val; }
 		};
 
 		/** @constructor */
@@ -3050,6 +3103,8 @@
 			this.isNeedRecalc = null;
 
 			this.specificRange = null;
+			this.isForMacros = null;
+			this.activeCell = null;
 
 			//если запускаем новый поиск из-за измененного документа, то присылаем последний элемент, на который
 			//кликнул пользователь и далее пытаемся найти следующий/предыдущий
@@ -3089,6 +3144,7 @@
 			result.specificRange = this.specificRange;
 			result.lastSearchElem = this.lastSearchElem;
 			result.isNotSearchEmptyCells = this.isNotSearchEmptyCells;
+			result.activeCell = this.activeCell;
 
 			return result;
 		};
@@ -3098,9 +3154,9 @@
 				this.scanOnOnlySheet === obj.scanOnOnlySheet;
 		};
 		asc_CFindOptions.prototype.isEqual2 = function (obj) {
-			return obj && this.findWhat === obj.findWhat && this.scanByRows === obj.scanByRows &&
-				this.isMatchCase === obj.isMatchCase && this.isWholeCell === obj.isWholeCell &&
-				this.lookIn === obj.lookIn && this.specificRange == obj.specificRange && this.isNotSearchEmptyCells == obj.isNotSearchEmptyCells;
+			return obj && this.findWhat === obj.findWhat && this.scanByRows === obj.scanByRows && this.isMatchCase === obj.isMatchCase && this.isWholeCell === obj.isWholeCell &&
+				this.lookIn === obj.lookIn && this.specificRange == obj.specificRange && this.isNotSearchEmptyCells == obj.isNotSearchEmptyCells && this.activeCell ==
+				obj.activeCell;
 		};
 		asc_CFindOptions.prototype.clearFindAll = function () {
 			this.countFindAll = 0;
@@ -3148,6 +3204,8 @@
 		asc_CFindOptions.prototype.asc_setNeedRecalc = function (val) {this.isNeedRecalc = val;};
 		asc_CFindOptions.prototype.asc_setLastSearchElem = function (val) {this.lastSearchElem = val;};
 		asc_CFindOptions.prototype.asc_setNotSearchEmptyCells = function (val) {this.isNotSearchEmptyCells = val;};
+		asc_CFindOptions.prototype.asc_setActiveCell = function (val) {this.activeCell = val;};
+		asc_CFindOptions.prototype.asc_setIsForMacros = function (val) {this.isForMacros = val;};
 
 		/** @constructor */
 		function findResults() {
@@ -3371,6 +3429,10 @@
 			var y = this.getUTCFullYear();
 			return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 		};
+		cDate.prototype.isLeapYear1900 = function () {
+			var y = this.getUTCFullYear();
+			return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 || 1900 === y;
+		};
 
 		cDate.prototype.getDaysInMonth = function () {
 //    return arguments.callee[this.isLeapYear() ? 'L' : 'R'][this.getMonth()];
@@ -3383,11 +3445,21 @@
 		cDate.prototype.getDaysInMonth.L = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
 		cDate.prototype.getDayOfYear = function () {
-			//https://stackoverflow.com/a/8619946
-			var start = new Date(this.getFullYear(), 0, 0);
-			var diff = (this - start) + ((start.getTimezoneOffset() - this.getTimezoneOffset()) * 60 * 1000);
-			var oneDay = 1000 * 60 * 60 * 24;
-			return Math.floor(diff / oneDay);
+			let year = Date.prototype.getUTCFullYear.call(this);
+			let month = Date.prototype.getUTCMonth.call(this);
+			let date = Date.prototype.getUTCDate.call(this);
+			if (1899 === year && 11 === month && 30 === date) {
+				return 0;
+			} else if (1899 === year && 11 === month && 31 === date) {
+				return 1;
+			}
+			let dayCount = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+			let dayOfYear = dayCount[month] + date;
+			if (month > 1 && this.isLeapYear1900()) dayOfYear++;
+			if (1900 === year && month <= 1) {
+				dayOfYear++;
+			}
+			return dayOfYear;
 		};
 
 		cDate.prototype.truncate = function () {
@@ -3522,6 +3594,9 @@
 				return new cDate(dateStr + "Z");
 			}
 		};
+		cDate.prototype.getCurrentDate = function () {
+			return this;
+		}
 
 		function getIconsForLoad() {
 			return AscCommonExcel.getCFIconsForLoad().concat(AscCommonExcel.getSlicerIconsForLoad()).concat(AscCommonExcel.getPivotButtonsForLoad());
@@ -3537,7 +3612,6 @@
 		window['AscCommonExcel'] = window['AscCommonExcel'] || {};
 		window['AscCommonExcel'].g_ActiveCell = null; // Active Cell for calculate (in R1C1 mode for relative cell)
 		window['AscCommonExcel'].g_R1C1Mode = false; // No calculate in R1C1 mode
-		window['AscCommonExcel'].kCurCells = "se-cells";
 		window["AscCommonExcel"].recalcType = recalcType;
 		window["AscCommonExcel"].sizePxinPt = sizePxinPt;
 		window['AscCommonExcel'].c_sPerDay = c_sPerDay;
@@ -3626,6 +3700,7 @@
 		prot["asc_getFilter"] = prot.asc_getFilter;
 		prot["asc_getTooltip"] = prot.asc_getTooltip;
 		prot["asc_getColor"] = prot.asc_getColor;
+		prot["asc_getPlaceholderType"] = prot.asc_getPlaceholderType;
 
 		window["Asc"]["asc_CHyperlink"] = window["Asc"].asc_CHyperlink = asc_CHyperlink;
 		prot = asc_CHyperlink.prototype;
@@ -3657,6 +3732,12 @@
 		prot["asc_setIgnorePrintArea"] = prot.asc_setIgnorePrintArea;
 		prot["asc_getNativeOptions"] = prot.asc_getNativeOptions;
 		prot["asc_setNativeOptions"] = prot.asc_setNativeOptions;
+		prot["asc_getActiveSheetsArray"] = prot.asc_getActiveSheetsArray;
+		prot["asc_setActiveSheetsArray"] = prot.asc_setActiveSheetsArray;
+		prot["asc_getStartPageIndex"] = prot.asc_getStartPageIndex;
+		prot["asc_setStartPageIndex"] = prot.asc_setStartPageIndex;
+		prot["asc_getEndPageIndex"] = prot.asc_getEndPageIndex;
+		prot["asc_setEndPageIndex"] = prot.asc_setEndPageIndex;
 
 		window["AscCommonExcel"].asc_CLockInfo = asc_CLockInfo;
 
@@ -3668,9 +3749,11 @@
 		prot["asc_getShowRowColHeaders"] = prot.asc_getShowRowColHeaders;
 		prot["asc_getIsFreezePane"] = prot.asc_getIsFreezePane;
 		prot["asc_getShowZeros"] = prot.asc_getShowZeros;
+		prot["asc_getShowFormulas"] = prot.asc_getShowFormulas;
 		prot["asc_setShowGridLines"] = prot.asc_setShowGridLines;
 		prot["asc_setShowRowColHeaders"] = prot.asc_setShowRowColHeaders;
 		prot["asc_setShowZeros"] = prot.asc_setShowZeros;
+		prot["asc_setShowFormulas"] = prot.asc_setShowFormulas;
 
 		window["AscCommonExcel"].asc_CPane = asc_CPane;
 		window["AscCommonExcel"].asc_CSheetPr = asc_CSheetPr;
@@ -3699,6 +3782,9 @@
 		prot["asc_setNeedRecalc"] = prot.asc_setNeedRecalc;
 		prot["asc_setLastSearchElem"] = prot.asc_setLastSearchElem;
 		prot["asc_setNotSearchEmptyCells"] = prot.asc_setNotSearchEmptyCells;
+		prot["asc_setActiveCell"] = prot.asc_setActiveCell;
+		prot["asc_setIsForMacros"] = prot.asc_setIsForMacros;
+
 
 		window["AscCommonExcel"].findResults = findResults;
 

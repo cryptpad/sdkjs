@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -206,6 +206,13 @@ AscFormat.InitClass(SlideLayout, AscFormat.CBaseFormatObject, AscDFH.historyitem
     {
         History.Add(new AscDFH.CChangesDrawingsObjectNoId(this, AscDFH.historyitem_SlideLayoutSetBg, this.cSld.Bg, bg));
         this.cSld.Bg = bg;
+        this.recalcInfo.recalculateBackground = true;
+    };
+    SlideLayout.prototype.needRecalc = function()
+    {
+        return  this.recalcInfo.recalculateBackground ||
+                this.recalcInfo.recalculateSpTree ||
+                this.recalcInfo.recalculateBounds;
     };
     SlideLayout.prototype.setCSldName = function(name)
     {
@@ -239,6 +246,7 @@ AscFormat.InitClass(SlideLayout, AscFormat.CBaseFormatObject, AscDFH.historyitem
         History.Add(new AscDFH.CChangesDrawingsContent(this, AscDFH.historyitem_SlideLayoutAddToSpTree, pos, [item], true));
         this.cSld.spTree.splice(pos, 0, item);
         item.setParent2(this);
+        this.recalcInfo.recalculateSpTree = true;
     };
     SlideLayout.prototype.addToSpTreeToPos = function(pos, obj)
     {
@@ -298,16 +306,7 @@ AscFormat.InitClass(SlideLayout, AscFormat.CBaseFormatObject, AscDFH.historyitem
         if(slide){
             if(slide.num !== this.lastRecalcSlideIndex){
                 this.lastRecalcSlideIndex = slide.num;
-                this.handleAllContents(function (oContent) {
-                    if(oContent){
-                        if(oContent.AllFields && oContent.AllFields.length > 0){
-                            for(var j = 0; j < oContent.AllFields.length; j++){
-                                oContent.AllFields[j].RecalcInfo.Measure = true;
-                                oContent.AllFields[j].Refresh_RecalcData2();
-                            }
-                        }
-                    }
-                });
+                this.cSld.refreshAllContentsFields();
                 this.recalculate();
 
             }
@@ -411,6 +410,8 @@ AscFormat.InitClass(SlideLayout, AscFormat.CBaseFormatObject, AscDFH.historyitem
             }
             this.recalcInfo.recalculateBounds = false;
         }
+        this.recalcInfo.recalculateBackground = false;
+        this.recalcInfo.recalculateSpTree = false;
     };
     SlideLayout.prototype.recalculate2 = function()
     {
@@ -498,6 +499,11 @@ AscFormat.InitClass(SlideLayout, AscFormat.CBaseFormatObject, AscDFH.historyitem
                 case AscDFH.historyitem_SlideLayoutAddToSpTree:
                 {
                     this.recalcInfo.recalculateBounds = true;
+                    this.addToRecalculate();
+                    break;
+                }
+                case AscDFH.historyitem_SlideLayoutSetBg:
+                {
                     this.addToRecalculate();
                     break;
                 }
@@ -1074,3 +1080,5 @@ function CLayoutThumbnailDrawer()
 //--------------------------------------------------------export----------------------------------------------------
 window['AscCommonSlide'] = window['AscCommonSlide'] || {};
 window['AscCommonSlide'].SlideLayout = SlideLayout;
+window['AscCommonSlide'].LAYOUT_TYPE_MAP = LAYOUT_TYPE_MAP;
+window['AscCommonSlide'].LAYOUT_TYPE_TO_STRING = LAYOUT_TYPE_TO_STRING;

@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -185,6 +185,7 @@
         {
             this.nativeFile["close"]();
             this.nativeFile = null;
+            this.pages = [];
         }
     };
     CFile.prototype.getFileBinary = function()
@@ -386,7 +387,7 @@ void main() {\n\
             gl.shaderSource(shader, source);
             gl.compileShader(shader);
             if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
-                throw new Error('FAIL: shader ' + id + ' compilation failed');
+                throw new Error('FAIL: shader compilation failed');
             return shader;
         }
 
@@ -2291,7 +2292,7 @@ void main() {\n\
     {
         var aTextAround = [];
         var oPageMatches, oPart, oLineInfo, oLastPartInfo;
-        var sTempText, nAroundAdded;
+        var aResult, nAroundAdded;
         for (var nPage = 0; nPage < this.SearchResults.Pages.length; nPage++)
         {
             oPageMatches = this.SearchResults.Pages[nPage];
@@ -2299,7 +2300,7 @@ void main() {\n\
             // идём по всем совпадениям
             for (var nMatch = 0; nMatch < oPageMatches.length; nMatch++)
             {
-                sTempText = "";
+                aResult = ["", "", ""];
                 // найденный текст может быть разбит на части (строки)
                 for (var nPart = 0; nPart < oPageMatches[nMatch].length; nPart++)
                 {
@@ -2349,16 +2350,26 @@ void main() {\n\
                     }
 
                     if (nPart == 0 && oPageMatches[nMatch].length == 1)
-                        sTempText += oLineInfo.text.slice(0, oLastPartInfo.posInLine) + '<b>' + oPart.Text + '</b>' + oLineInfo.text.slice(oLastPartInfo.posInLine + oPart.Text.length);
+                    {
+                        aResult[0] = oLineInfo.text.slice(0, oLastPartInfo.posInLine);
+                        aResult[1] = oPart.Text;
+                        aResult[2] = oLineInfo.text.slice(oLastPartInfo.posInLine + oPart.Text.length);
+                    }
                     else if (nPart == 0)
-                        sTempText += oLineInfo.text.slice(0, oLastPartInfo.posInLine) + '<b>' + oPart.Text;
+                    {
+                        aResult[0] = oLineInfo.text.slice(0, oLastPartInfo.posInLine);
+                        aResult[1] = oPart.Text;
+                    }
                     else if (nPart == oPageMatches[nMatch].length - 1)
-                        sTempText += oPart.Text + '</b>' + oLineInfo.text.slice(oLastPartInfo.posInLine + oPart.Text.length);
+                    {
+                        aResult[1] += oPart.Text;
+                        aResult[2] += oLineInfo.text.slice(oLastPartInfo.posInLine + oPart.Text.length);
+                    }
                     else
-                        sTempText += oPart.Text;
+                        aResult[2] += oPart.Text;
                 }
 
-                aTextAround.push([nAroundAdded + nMatch, sTempText]);
+                aTextAround.push([nAroundAdded + nMatch, aResult]);
             }
         }
 

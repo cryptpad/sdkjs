@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -80,7 +80,7 @@ function MoveShapeImageTrack(originalObject)
     {
         this.cropObject = this.originalObject.cropObject;
     }
-    this.overlayObject = new AscFormat.OverlayObject(originalObject.getGeom(), this.originalObject.extX, this.originalObject.extY, this.brush, this.pen, this.transform);
+    this.overlayObject = new AscFormat.OverlayObject(originalObject.getTrackGeometry(), this.originalObject.extX, this.originalObject.extY, this.brush, this.pen, this.transform);
 
     this.groupInvertMatrix = null;
     if(this.originalObject.group)
@@ -506,7 +506,7 @@ function MoveGroupTrack(originalObject)
         var gr_obj_transform_copy = arr_graphic_objects[i].transform.CreateDublicate();
         global_MatrixTransformer.MultiplyAppend(gr_obj_transform_copy, group_invert_transform);
         this.arrTransforms2[i] = gr_obj_transform_copy;
-        this.overlayObjects[i] = new AscFormat.OverlayObject(arr_graphic_objects[i].getGeom(), arr_graphic_objects[i].extX, arr_graphic_objects[i].extY,
+        this.overlayObjects[i] = new AscFormat.OverlayObject(arr_graphic_objects[i].getTrackGeometry(), arr_graphic_objects[i].extX, arr_graphic_objects[i].extY,
             arr_graphic_objects[i].brush,  arr_graphic_objects[i].pen, new CMatrix());
     }
 

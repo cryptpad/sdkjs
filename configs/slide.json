@@ -5,6 +5,7 @@
 			"common/userinfo_parser.js",
 			"common/browser.js",
 			"common/skin.js",
+			"common/errorCodes.js",
 			"common/commonDefines.js",
 			"common/docscoapicommon.js",
 			"common/docscoapi.js",
@@ -14,6 +15,7 @@
 			"vendor/string.js",
 			"vendor/array.js",
 			"common/editorscommon.js",
+            "common/BulletPreviewDrawer.js",
 			"common/HistoryCommon.js",
 			"common/TableId.js",
 			"common/TableIdChanges.js",
@@ -31,7 +33,6 @@
 			"slide/api.js",
 			"slide/api_plugins.js",
 			"common/spell/spell.js",
-			"common/zlib/zlib.js",
 			"word/Editor/Table/TableLook.js",
 			"cell/utils/utils.js"
 		],
@@ -60,6 +61,7 @@
 			"common/libfont/manager.js",
 
 			"common/stringserialize.js",
+			"common/digest/sha256.js",
 			"common/random.js",
 			"common/keychainstorage.js",
 
@@ -112,6 +114,9 @@
 			"common/Drawings/DrawingObjectsHandlers.js",
 			"common/Drawings/TextDrawer.js",
 
+			"common/PromiseIterators.js",
+			"common/ExternalDataLoader.js",
+
 			"common/Drawings/Externals.js",
 			"common/GlobalLoaders.js",
 			"common/Controls.js",
@@ -141,12 +146,14 @@
 			"word/Editor/Styles.js",
 			"slide/Editor/Format/StylesPrototype.js",
 			"word/Editor/Numbering/NumberingApplicator.js",
+			"word/Editor/Numbering/NumberingCollection.js",
 			"word/Editor/Numbering/NumberingCommon.js",
 			"word/Editor/Numbering/NumberingLvl.js",
 			"word/Editor/Numbering/AbstractNum.js",
 			"word/Editor/Numbering/AbstractNumChanges.js",
 			"word/Editor/Numbering/Num.js",
 			"word/Editor/Numbering/NumChanges.js",
+			"word/Editor/Numbering/NumInfo.js",
 			"word/Editor/Numbering/PresentationNumbering.js",
 			"word/Editor/Numbering/Numbering.js",
 			"word/Drawing/GraphicsEvents.js",
@@ -170,6 +177,8 @@
 			"word/Drawing/buttons.js",
 
 			"slide/Drawing/Transitions.js",
+			"slide/Drawing/MorphTransition.js",
+			"word/Drawing/cachemanager.js",
 			"slide/Drawing/DrawingDocument.js",
 			"slide/Drawing/HtmlPage.js",
 			"slide/Editor/Format/Presentation.js",
@@ -212,8 +221,10 @@
 			"word/Editor/Paragraph/ComplexFields/FormText.js",
 			"word/Editor/Paragraph/ComplexFields/MergeField.js",
 			"word/Editor/Paragraph/ComplexField.js",
+			"word/Editor/Paragraph/DisplayStyleCalculator.js",
 			"word/Editor/Paragraph/ParaRevisionMove.js",
 			"word/Editor/Paragraph/GraphemesCounter.js",
+			"word/Editor/Paragraph/TextHyphenator.js",
 			"word/Editor/Paragraph/TextShaper.js",
 			"word/Editor/Hyperlink.js",
 			"word/Editor/HyperlinkChanges.js",
@@ -295,6 +306,7 @@
 			"word/Editor/Search/Pattern.js",
 			"word/Editor/GlossaryDocument.js",
 			"word/Editor/GlossaryDocumentChanges.js",
+			"word/Editor/Styles/style-cache.js",
 			"word/Editor/Styles/FixedFormDefaults.js",
 			"word/Editor/Revisions/TrackRevisionsManager.js",
 
@@ -312,6 +324,7 @@
 			"common/versionHistory.js",
 			"common/clipboard_base.js",
 			"common/text_input2.js",
+			"common/workerspeech.js",
 			"common/Drawings/Format/OleObject.js",
 			"common/Drawings/Format/DrawingContent.js",
 			"common/plugins.js",
@@ -339,17 +352,25 @@
 		"mobile": [
 			"common/libfont/engine/fonts_native.js",
 			"common/Charts/ChartStyles.js",
+
+			"common/Native/Wrappers/serialize.js",
 			"common/Native/Wrappers/DrawingStream.js",
 			"common/Native/Wrappers/ShapeDrawer.js",
 			"common/Native/Wrappers/Overlay.js",
-			"slide/Native/Wrappers/api.js",
-			"slide/Native/Wrappers/HtmlPage.js",
-			"slide/Native/Wrappers/DrawingDocument.js",
-			"slide/Native/Wrappers/native.js"
+
+			"slide/Native/api.js",
+			"slide/Native/HtmlPage.js",
+			"slide/Native/DrawingDocument.js",
+			"slide/Native/native.js"
 		],
 		"exclude_mobile": [
 			"vendor/iscroll.js",
 			"common/Overlay.js",
+
+			"common/Scrolls/mobileTouchManagerBase.js",
+			"slide/Drawing/mobileTouchManager.js",
+			
+			"word/Drawing/cachemanager.js",
 			"word/Drawing/ShapeDrawer.js",
 			"slide/Drawing/HtmlPage.js",
 			"slide/Drawing/DrawingDocument.js"

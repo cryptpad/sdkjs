@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -925,7 +925,7 @@
                 oCPres.attrAutoCompressPictures = oParsedObj["autoCompressPictures"];
                 oCPres.attrBookmarkIdSeed = oParsedObj["bookmarkIdSeed"];
                 oCPres.attrCompatMode = oParsedObj["compatMode"];
-                oCPres.attrConformance = oParsedObj["conformance"] === "strict" ? c_oAscConformanceType.Strict : c_oAscConformanceType.Transitional;
+                oCPres.attrConformance = oParsedObj["conformance"] === "strict" ? Asc.c_oAscConformanceType.Strict : Asc.c_oAscConformanceType.Transitional;
                 oCPres.attrEmbedTrueTypeFonts = oParsedObj["embedTrueTypeFonts"];
                 oCPres.attrFirstSlideNum = oParsedObj["firstSlideNum"];
                 oCPres.attrRemovePersonalInfoOnSave = oParsedObj["removePersonalInfoOnSave"];
@@ -1285,7 +1285,7 @@
      */
      ApiPresentation.prototype.GetWidth = function() {
         if(this.Presentation){
-            this.Presentation.GetWidthEMU();
+            return this.Presentation.GetWidthEMU();
         }
     };
 
@@ -1297,7 +1297,7 @@
      */
     ApiPresentation.prototype.GetHeight = function() {
         if(this.Presentation){
-            this.Presentation.GetHeightEMU();
+            return this.Presentation.GetHeightEMU();
         }
     };
 
@@ -2664,6 +2664,35 @@
             bg.bgPr.Fill = oApiFill.UniFill;
             this.Slide.changeBackground(bg);
             this.Slide.recalculateBackground();
+            return true;
+        }
+        return false;
+    };
+
+
+    /**
+     * Returns the visibility to the current presentation slide.
+     * @memberOf ApiSlide
+     * @typeofeditors ["CPE"]
+     * @returns {boolean}
+     * */
+    ApiSlide.prototype.GetVisible = function(){
+        if(this.Slide){
+            return this.Slide.isVisible();
+        }
+        return false;
+    };
+
+    /**
+     * Sets the visibility to the current presentation slide.
+     * @memberOf ApiSlide
+     * @typeofeditors ["CPE"]
+     * @param {boolean} value - Value of visibility of slide.
+     * @returns {boolean}
+     * */
+    ApiSlide.prototype.SetVisible = function(value){
+        if(this.Slide){
+            this.Slide.setShow(value);
             return true;
         }
         return false;

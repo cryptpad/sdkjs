@@ -1,5 +1,5 @@
 /*
- * (c) Copyright Ascensio System SIA 2010-2019
+ * (c) Copyright Ascensio System SIA 2010-2023
  *
  * This program is a free software product. You can redistribute it and/or
  * modify it under the terms of the GNU Affero General Public License (AGPL)
@@ -12,7 +12,7 @@
  * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
  * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
  *
- * You can contact Ascensio System SIA at 20A-12 Ernesta Birznieka-Upisha
+ * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
  * street, Riga, Latvia, EU, LV-1050.
  *
  * The  interactive user interfaces in modified source and object code versions
@@ -131,7 +131,8 @@ var c_oAscMouseMoveType = {
   ResizeRow: 5,
   Filter: 6,
   Tooltip: 7,
-  ForeignSelect: 8
+  ForeignSelect: 8,
+  Eyedropper: 9
 };
 
 var c_oAscMouseMoveLockedObjectType = {
@@ -154,7 +155,8 @@ var c_oAscLockTypeElemSubType = {
   InsertRows: 4,
   ChangeProperties: 5,
   DefinedNames: 6,
-  NamedSheetView: 7
+  NamedSheetView: 7,
+  UserProtectedRange: 8
 };
 
 var c_oAscRecalcIndexTypes = {
@@ -309,7 +311,8 @@ var c_oTargetType = {
   GroupRow: 16,
   GroupCol: 17,
   TableSelectionChange: 18,
-  Placeholder: 19
+  Placeholder: 19,
+  ColumnRowHeaderMove: 20
 };
 
 var c_oAscAutoFilterTypes = {
@@ -346,7 +349,8 @@ var c_oAscVisibleAreaOleEditorBorderColor = new CColor(32, 139, 255);
     Resize      : 4,
     Promote     : 8,
     Dash        : 16,
-    DashThick   : 32
+    DashThick   : 32,
+    ResizeRange : 64
   };
 
   var docChangedType = {
@@ -425,7 +429,8 @@ var c_oAscPopUpSelectorType = {
   var c_oAscChangePrintAreaType = {
       set: 0,
       clear: 1,
-      add: 2
+      add: 2,
+      change: 3
   };
 
   //поля header/footer
@@ -437,7 +442,9 @@ var c_oAscPopUpSelectorType = {
       filePath: 4,
       date: 5,
       time: 6,
-      lineBreak: 7
+      lineBreak: 7,
+	  picture: 8,
+	  text: 9
   };
 
   var c_oAscPageHFType = {
@@ -566,6 +573,20 @@ var c_oAscPopUpSelectorType = {
     path: 2
   };
 
+  var c_oAscPageBreaksDisableType = {
+    none: 0,
+    all: 1,
+    insertRemove: 2,
+    reset: 3
+  };
+
+
+  var c_oAscRemoveArrowsType = {
+    all: 0,
+    precedent: 1,
+    dependent: 2
+  };
+
   //----------------------------------------------------------export----------------------------------------------------
   window['AscCommonExcel'] = window['AscCommonExcel'] || {};
   window['AscCommonExcel'].c_oAscDrawDepOptions = c_oAscDrawDepOptions;
@@ -677,6 +698,7 @@ var c_oAscPopUpSelectorType = {
   prot['Filter'] = prot.Filter;
   prot['Tooltip'] = prot.Tooltip;
   prot['ForeignSelect'] = prot.ForeignSelect;
+  prot['Eyedropper'] = prot.Eyedropper;
   window['Asc']['c_oAscMouseMoveLockedObjectType'] = window['Asc'].c_oAscMouseMoveLockedObjectType = c_oAscMouseMoveLockedObjectType;
   prot = c_oAscMouseMoveLockedObjectType;
   prot['None'] = prot.None;
@@ -701,6 +723,38 @@ var c_oAscPopUpSelectorType = {
   prot = c_oAscDynamicAutoFilter;
   prot['aboveAverage'] = prot.aboveAverage;
   prot['belowAverage'] = prot.belowAverage;
+  prot['lastMonth']    = prot.lastMonth;
+  prot['lastQuarter']  = prot.lastQuarter;
+  prot['lastWeek']     = prot.lastWeek;
+  prot['lastYear']     = prot.lastYear;
+  prot['m1']           = prot.m1;
+  prot['m11']          = prot.m11;
+  prot['m12']          = prot.m12;
+  prot['m2']           = prot.m2;
+  prot['m3']           = prot.m3;
+  prot['m4']           = prot.m4;
+  prot['m5']           = prot.m5;
+  prot['m6']           = prot.m6;
+  prot['m7']           = prot.m7;
+  prot['m8']           = prot.m8;
+  prot['m9']           = prot.m9;
+  prot['nextMonth']    = prot.nextMonth;
+  prot['nextQuarter']  = prot.nextQuarter;
+  prot['nextWeek']     = prot.nextWeek;
+  prot['nextYear']     = prot.nextYear;
+  prot['nullType']     = prot.nullType;
+  prot['q1']           = prot.q1;
+  prot['q2']           = prot.q2;
+  prot['q3']           = prot.q3;
+  prot['q4']           = prot.q4;
+  prot['thisMonth']    = prot.thisMonth;
+  prot['thisQuarter']  = prot.thisQuarter;
+  prot['thisWeek']     = prot.thisWeek;
+  prot['thisYear']     = prot.thisYear;
+  prot['today']        = prot.today;
+  prot['tomorrow']     = prot.tomorrow;
+  prot['yearToDate']   = prot.yearToDate;
+  prot['yesterday']    = prot.yesterday;
   window['Asc']['c_oAscTop10AutoFilter'] = window['Asc'].c_oAscTop10AutoFilter = c_oAscTop10AutoFilter;
   prot = c_oAscTop10AutoFilter;
   prot['max'] = prot.max;
@@ -810,8 +864,10 @@ var c_oAscPopUpSelectorType = {
   prot['date'] = prot.date;
   prot['time'] = prot.time;
   prot['lineBreak'] = prot.lineBreak;
+  prot['picture'] = prot.picture;
+  prot['text'] = prot.text;
   window['Asc']['c_oAscPageHFType'] = window['Asc'].c_oAscPageHFType = c_oAscPageHFType;
-  prot = c_oAscHeaderFooterField;
+  prot = c_oAscPageHFType;
   prot['firstHeader'] = prot.firstHeader;
   prot['oddHeader'] = prot.oddHeader;
   prot['evenHeader'] = prot.evenHeader;
@@ -856,6 +912,7 @@ var c_oAscPopUpSelectorType = {
   prot['reference'] = prot.reference;
   prot['any'] = prot.any;
   prot['logical'] = prot.logical;
+  prot['array'] = prot.array;
 
   window['Asc']['c_oAscSelectionForCFType'] = window['Asc'].c_oAscSelectionForCFType = c_oAscSelectionForCFType;
   prot = c_oAscSelectionForCFType;
@@ -925,6 +982,18 @@ var c_oAscPopUpSelectorType = {
   prot['referenceData'] = prot.referenceData;
   prot['link'] = prot.link;
   prot['path'] = prot.path;
+
+  window['Asc']['c_oAscPageBreaksDisableType'] = window['Asc'].c_oAscPageBreaksDisableType = c_oAscPageBreaksDisableType;
+  prot = c_oAscPageBreaksDisableType;
+  prot['none'] = prot.none;
+  prot['all'] = prot.all;
+  prot['insertRemove'] = prot.insertRemove;
+  prot['reset'] = prot.reset;
+  window['Asc']['c_oAscRemoveArrowsType'] = window['Asc'].c_oAscRemoveArrowsType = c_oAscRemoveArrowsType;
+  prot = c_oAscRemoveArrowsType;
+  prot['all'] = prot.all;
+  prot['precedent'] = prot.precedent;
+  prot['dependent'] = prot.dependent;
 
 
 })(window);
