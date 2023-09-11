@@ -1263,9 +1263,8 @@
       var bSendEnd = false;
       for (var block in data["locks"]) {
         if (data["locks"].hasOwnProperty(block)) {
-          var lock = data["locks"][block];
+          var lock = data["locks"][block], blockTmp = (this._isExcel || this._isPresentation) ? lock["block"]["guid"] : lock["block"];
           if (lock !== null) {
-            var blockTmp = (this._isExcel || this._isPresentation) ? lock["block"]["guid"] : lock["block"];
             this._locks[blockTmp] = {"state": 0, "user": lock["user"], "time": lock["time"], "changes": lock["changes"], "block": lock["block"]};
             if (this.onLocksReleased) {
               // true - lock with save
