@@ -1,6 +1,10 @@
 
 [![License](https://img.shields.io/badge/License-GNU%20AGPL%20V3-green.svg?style=flat)](http://www.gnu.org/licenses/agpl-3.0.ru.html) 
 
+## Modifications by CryptPad
+
+This is a modified version of the OnlyOffice SDK. These modifications are made to replace OnlyOffice's server with the real time collaboration of CryptPad. See the branches with the `cp*` prefix for the mofifications we made.
+
 ## Sdkjs
 
 JavaScript SDK which is a part of [ONLYOFFICE Document Server][2]. Contains API for all the included components client-side interaction.
