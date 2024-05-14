@@ -262,6 +262,10 @@ CParagraphContentBase.prototype.GetParent = function()
 	if (!this.Paragraph)
 		return null;
 
+	// CryptPad: This method seems to be missing sometimes
+	if (!this.Paragraph.Get_PosByElement)
+    	return null;
+
 	var oContentPos = this.Paragraph.Get_PosByElement(this);
 	if (!oContentPos || oContentPos.GetDepth() < 0)
 		return null;
