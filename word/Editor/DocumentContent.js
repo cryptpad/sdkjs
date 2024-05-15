@@ -474,7 +474,8 @@ CDocumentContent.prototype.Get_Styles = function(nLvl)
 };
 CDocumentContent.prototype.GetStyles = function(nLvl)
 {
-	if (this.bPresentation && this.Parent)
+    // CryptPad Get_Styles seems to be unset sometimes
+	if (this.bPresentation && this.Parent && this.Parent.Get_Styles)
 		return this.Parent.Get_Styles(nLvl);
 
 	if (this.LogicDocument)
@@ -6818,7 +6819,7 @@ CDocumentContent.prototype.Select_DrawingObject      = function(Id)
 	let drawingObject = AscCommon.g_oTableId.GetById(Id);
 	if (!drawingObject || !drawingObject.IsUseInDocument())
 		return;
-	
+
     this.RemoveSelection();
 
     this.Parent.Set_CurrentElement(true, this.Get_StartPage_Absolute() + this.CurPage, this);
