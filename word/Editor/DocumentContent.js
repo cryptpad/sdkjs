@@ -323,7 +323,8 @@ CDocumentContent.prototype.Get_Theme = function()
 };
 CDocumentContent.prototype.Get_ColorMap = function()
 {
-	if (this.Parent)
+    // CryptPad Get_Styles seems to be unset sometimes
+	if (this.Parent && this.Parent.Get_ColorMap)
 		return this.Parent.Get_ColorMap();
 
 	if (this.LogicDocument)
