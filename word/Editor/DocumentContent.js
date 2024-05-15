@@ -312,7 +312,8 @@ CDocumentContent.prototype.Get_PageContentStartPos2 = function(StartPageIndex, S
 };
 CDocumentContent.prototype.Get_Theme = function()
 {
-	if (this.Parent)
+    // CryptPad Get_Theme seems to be unset sometimes
+	if (this.Parent && this.Parent.Get_Theme)
 		return this.Parent.Get_Theme();
 
 	if (this.LogicDocument)
