@@ -1227,7 +1227,8 @@ CParagraphContentWithContentBase.prototype.OnContentChange = function()
 	else
 	{
 		let oParagraph = this.GetParagraph();
-		if (oParagraph)
+		// CryptPad: This method seems to be missing sometimes
+		if (oParagraph && oParagraph.OnContentChange)
 			oParagraph.OnContentChange();
 	}
 };
