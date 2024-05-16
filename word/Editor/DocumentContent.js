@@ -301,7 +301,8 @@ CDocumentContent.prototype.SetParent = function(oParent)
 //-----------------------------------------------------------------------------------
 CDocumentContent.prototype.Get_PageContentStartPos = function(PageNum)
 {
-	if (this.Parent)
+    // CryptPad method seems to be unset sometimes
+	if (this.Parent && this.Parent.Get_PageContentStartPos)
 		return this.Parent.Get_PageContentStartPos(PageNum);
 
 	return {X : 0, Y : 0, XLimit : 210, YLimit : 297};
@@ -537,14 +538,16 @@ CDocumentContent.prototype.Set_CurrentElement = function(Index, bUpdateStates)
 };
 CDocumentContent.prototype.IsThisElementCurrent = function()
 {
-	if (this.Parent)
+    // CryptPad method seems to be unset sometimes
+	if (this.Parent && this.Parent.IsThisElementCurrent)
 		return this.Parent.IsThisElementCurrent(this);
 
 	return false;
 };
 CDocumentContent.prototype.SetThisElementCurrent = function(isUpdateStates)
 {
-	if (this.Parent)
+    // CryptPad method seems to be unset sometimes
+	if (this.Parent && this.Parent.Set_CurrentElement)
 		this.Parent.Set_CurrentElement(isUpdateStates, this.GetAbsolutePage(0), this);
 };
 // Получем ближающую возможную позицию курсора
@@ -684,7 +687,8 @@ CDocumentContent.prototype.IsFootnote = function(bReturnFootnote)
 	if (this instanceof CFootEndnote)
 		return bReturnFootnote ? this : true;
 
-	if (this.Parent)
+	// CryptPad method seems to be unset sometimes
+	if (this.Parent && this.Parent.IsFootnote)
 		return this.Parent.IsFootnote(bReturnFootnote);
 
 	return (bReturnFootnote ? null : false);
@@ -2126,7 +2130,8 @@ CDocumentContent.prototype.StartFromNewPage = function()
 };
 CDocumentContent.prototype.Get_ParentTextTransform = function()
 {
-	if (this.Parent)
+    // CryptPad method seems to be unset sometimes
+	if (this.Parent && this.Parent.Get_ParentTextTransform)
 		return this.Parent.Get_ParentTextTransform();
 
 	return null;
@@ -8046,7 +8051,7 @@ CDocumentContent.prototype.GetPrevElementEndInfo = function(CurElement)
 	{
 		return PrevElement.GetEndInfo();
 	}
-	else if (this.Parent)
+	else if (this.Parent && this.Parent.GetPrevElementEndInfo) // CryptPad method seems to be unset sometimes
 	{
 		return this.Parent.GetPrevElementEndInfo(this);
 	}
