@@ -368,7 +368,8 @@ CDocumentContent.prototype.Get_PageLimits = function(nCurPage)
 };
 CDocumentContent.prototype.Get_PageFields = function(PageIndex, isHdrFtr, oSectPr)
 {
-	if (this.Parent && (this.Parent.IsCell() || (undefined !== AscFormat.CShape && this.Parent instanceof AscFormat.CShape)))
+    // CryptPad: method seems to be unset sometimes
+	if (this.Parent && this.Parent.IsCell && (this.Parent.IsCell() || (undefined !== AscFormat.CShape && this.Parent instanceof AscFormat.CShape)))
 	{
 		if (PageIndex < this.Pages.length && PageIndex >= 0)
 		{
