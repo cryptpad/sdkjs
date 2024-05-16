@@ -429,8 +429,13 @@ CDocumentContent.prototype.CheckRange = function(X0, Y0, X1, Y1, _Y0, _Y1, X_lf,
 	if (undefined === isInner)
 		isInner = true;
 
-	if (this.IsBlockLevelSdtContent() && isInner)
+	if (this.IsBlockLevelSdtContent() && isInner) {
+	    // CryptPad: method seems to be unset sometimes
+	    if (!this.Parent.CheckRange) {
+			return [];
+		}
 		return this.Parent.CheckRange(X0, Y0, X1, Y1, _Y0, _Y1, X_lf, X_rf, CurPage, true, bMathWrap);
+	}
 
 	if (this.LogicDocument && this.LogicDocument.IsDocumentEditor())
 	{
@@ -598,14 +603,16 @@ CDocumentContent.prototype.Get_NearestPos = function(CurPage, X, Y, bAnchor, Dra
 // Проверяем, описывает ли данный класс содержимое ячейки
 CDocumentContent.prototype.IsTableCellContent = function(isReturnCell)
 {
-	if (!this.Parent)
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.IsCell)
 		return isReturnCell ? null : false;
 
 	return this.Parent.IsCell(isReturnCell);
 };
 CDocumentContent.prototype.IsLastTableCellInRow = function(isSelection)
 {
-	if (!this.Parent.IsCell())
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent.IsCell() || !this.Parent.IsLastTableCellInRow)
 		return false;
 
 	return this.Parent.IsLastTableCellInRow(isSelection);
@@ -624,14 +631,16 @@ CDocumentContent.prototype.IsTableHeader = function()
 };
 CDocumentContent.prototype.IsTableFirstRowOnNewPage = function()
 {
-	if (!this.Parent || !this.Parent.IsCell())
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.IsCell() || !this.Parent.IsTableFirstRowOnNewPage)
 		return false;
 
 	return this.Parent.IsTableFirstRowOnNewPage();
 };
 CDocumentContent.prototype.Check_AutoFit = function()
 {
-	if (!this.Parent)
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.Check_AutoFit)
 		return false;
 
 	return this.Parent.Check_AutoFit();
@@ -639,7 +648,8 @@ CDocumentContent.prototype.Check_AutoFit = function()
 // Проверяем, лежит ли данный класс в таблице
 CDocumentContent.prototype.IsInTable = function(isReturnTopTable)
 {
-	if (!this.Parent)
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.IsInTable)
 		return isReturnTopTable ? null : false;
 
 	return this.Parent.IsInTable(isReturnTopTable);
@@ -647,7 +657,8 @@ CDocumentContent.prototype.IsInTable = function(isReturnTopTable)
 // Проверяем, является ли данный класс верхним, по отношению к другим классам DocumentContent, Document
 CDocumentContent.prototype.Is_TopDocument = function(isReturnTopDocument)
 {
-	if (!this.Parent)
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.Is_TopDocument)
 		return isReturnTopDocument ? this : true;
 
 	return this.Parent.Is_TopDocument(isReturnTopDocument);
@@ -716,7 +727,8 @@ CDocumentContent.prototype.IsMovingTableBorder = function()
 };
 CDocumentContent.prototype.CheckTableCoincidence = function(Table)
 {
-	if (!this.Parent)
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.CheckTableCoincidence)
 		return false;
 
 	return this.Parent.CheckTableCoincidence(Table);
@@ -1440,7 +1452,8 @@ CDocumentContent.prototype.PrepareRecalculateObject = function()
 };
 CDocumentContent.prototype.ReDraw = function(StartPage, EndPage)
 {
-	if (!this.Parent)
+    // CryptPad: method seems to be unset sometimes
+	if (!this.Parent || !this.Parent.OnContentReDraw)
 		return;
 
 	if ("undefined" === typeof(StartPage))
@@ -7359,7 +7372,8 @@ CDocumentContent.prototype.private_GetRelativePageIndex = function(CurPage)
 };
 CDocumentContent.prototype.private_GetAbsolutePageIndex = function(CurPage)
 {
-	if (!this.Parent)
+    // CryptPad method seems to be unset sometimes
+    if (!this.Parent || !this.Parent.Get_AbsolutePage)
 		return CurPage;
 
 	return this.Parent.Get_AbsolutePage(this.private_GetRelativePageIndex(CurPage));
