@@ -493,15 +493,18 @@ CDocumentContent.prototype.GetStyles = function(nLvl)
 };
 CDocumentContent.prototype.Get_TableStyleForPara = function()
 {
-	return this.Parent ? this.Parent.Get_TableStyleForPara() : null;
+    // CryptPad: method seems to be unset sometimes
+	return this.Parent && this.Parent.Get_TableStyleForPara ? this.Parent.Get_TableStyleForPara() : null;
 };
 CDocumentContent.prototype.Get_ShapeStyleForPara = function()
 {
-	return this.Parent ? this.Parent.Get_ShapeStyleForPara() : null;
+    // CryptPad: method seems to be unset sometimes
+	return this.Parent && this.Parent.Get_ShapeStyleForPara ? this.Parent.Get_ShapeStyleForPara() : null;
 };
 CDocumentContent.prototype.Get_TextBackGroundColor = function()
 {
-	return this.Parent ? this.Parent.Get_TextBackGroundColor() : undefined;
+    // CryptPad: method seems to be unset sometimes
+	return this.Parent && this.Parent.Get_TextBackGroundColor ? this.Parent.Get_TextBackGroundColor() : undefined;
 };
 CDocumentContent.prototype.Recalc_AllParagraphs_CompiledPr = function()
 {
@@ -1465,7 +1468,10 @@ CDocumentContent.prototype.ReDraw = function(StartPage, EndPage)
 };
 CDocumentContent.prototype.OnContentReDraw = function(StartPage, EndPage)
 {
-	this.Parent.OnContentReDraw(StartPage, EndPage);
+    // CryptPad: method seems to be unset sometimes
+    if (this.Parent.OnContentReDraw) {
+        this.Parent.OnContentReDraw(StartPage, EndPage);
+    }
 };
 CDocumentContent.prototype.Draw                           = function(nPageIndex, pGraphics)
 {
@@ -1725,7 +1731,8 @@ CDocumentContent.prototype.RecalculateCurPos = function(bUpdateX, bUpdateY, isUp
 		{
 			this.private_CheckCurPage();
 
-			if (this.CurPage > 0 && true === this.Parent.IsHdrFtr(false))
+			// CryptPad: method seems to be unset sometimes
+			if (this.CurPage > 0 && this.Parent.IsHdrFtr && true === this.Parent.IsHdrFtr(false))
 			{
 				this.CurPage = 0;
 				this.DrawingDocument.TargetEnd();
@@ -7394,7 +7401,8 @@ CDocumentContent.prototype.private_GetColumnIndex = function(CurPage)
 {
 	// TODO: Разобраться здесь нужно ли данное условие. Оно появилось из-за параграфов в таблице в
 	//       основной части документа и из-за параграфов в сносках.
-	if (this.Parent && 1 === this.ColumnsCount)
+	// CryptPad: method seems to be unset sometimes
+	if (this.Parent && this.Parent.Get_AbsoluteColumn && 1 === this.ColumnsCount)
     	return this.Parent.Get_AbsoluteColumn(this.private_GetRelativePageIndex(CurPage));
 
 	return (this.StartColumn + CurPage) - (((this.StartColumn + CurPage) / this.ColumnsCount | 0) * this.ColumnsCount);
@@ -7606,9 +7614,10 @@ CDocumentContent.prototype.Refresh_RecalcData = function(oData)
 };
 CDocumentContent.prototype.Refresh_RecalcData2 = function(nIndex, nPageRel)
 {
-	if (-1 === nIndex || !this.Parent)
+	if (-1 === nIndex || !this.Parent || !this.Parent.Refresh_RecalcData2)
 		return;
 
+	// CryptPad: method seems to be unset sometimes
 	this.Parent.Refresh_RecalcData2(this.StartPage + nPageRel);
 };
 //-----------------------------------------------------------------------------------
@@ -8074,7 +8083,8 @@ CDocumentContent.prototype.GetPrevElementEndInfo = function(CurElement)
 };
 CDocumentContent.prototype.GetTopElement = function()
 {
-    if (this.Parent)
+    // CryptPad: method seems to be unset sometimes
+    if (this.Parent && this.Parent.GetTopElement)
         return this.Parent.GetTopElement();
 
     return null;
