@@ -1057,7 +1057,8 @@ CParagraphContentWithContentBase.prototype.private_UpdateSpellChecking = functio
 };
 CParagraphContentWithContentBase.prototype.private_UpdateShapeText = function()
 {
-	if (this.Paragraph)
+    // CryptPad: add additional null check
+	if (this.Paragraph && this.Paragraph.RecalcInfo && this.Paragraph.RecalcInfo.NeedShapeText)
 		this.Paragraph.RecalcInfo.NeedShapeText();
 };
 CParagraphContentWithContentBase.prototype.IsUseInDocument = function()
